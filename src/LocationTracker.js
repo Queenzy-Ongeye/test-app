@@ -61,6 +61,26 @@ const LocationTracker = () => {
         }
     };
 
+    const getLastLocation = () => {
+        if (window.WebViewJavascriptBridge) {
+            window.WebViewJavascriptBridge.callHandler(
+                "getLastLocation",
+                "",
+                (responseData) => {
+                    setCurrentLocation({
+                        latitude: responseData.latitude,
+                        longitude: responseData.longitude,
+                        accuracy: responseData.accuracy,
+                        timestamp: responseData.timestamp,
+                    });
+                    setStatusMessage("Last known location retrieved successfully!");
+                }
+            );
+        } else {
+            setStatusMessage("WebViewJavascriptBridge not initialized.");
+        }
+    };
+
     useEffect(() => {
         connectWebViewJavascriptBridge((bridge) => {
             registerLocationCallback(bridge);
@@ -76,6 +96,9 @@ const LocationTracker = () => {
                 </button>
                 <button style={styles.button} onClick={stopLocationListener}>
                     Stop Location Listener
+                </button>
+                <button style={styles.button} onClick={getLastLocation}>
+                    Get Last Location
                 </button>
             </div>
             {statusMessage && <p style={styles.status}>{statusMessage}</p>}
