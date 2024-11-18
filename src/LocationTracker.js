@@ -1,45 +1,46 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from "react";
 
 const LocationTracker = () => {
     const [currentLocation, setCurrentLocation] = useState({
-        latitude: null,
-        longitude: null,
-        accuracy: null,
-        timestamp: null,
+        latitude: "Not available",
+        longitude: "Not available",
+        accuracy: "Not available",
+        timestamp: "Not available",
     });
-    const [statusMessage, setStatusMessage] = useState("");
+    const [statusMessage, setStatusMessage] = useState("Idle");
 
-    const connectWebViewJavascriptBridge = (callback) => {
-        if (window.WebViewJavascriptBridge) {
-            callback(window.WebViewJavascriptBridge);
-        } else {
-            document.addEventListener(
-                "WebViewJavascriptBridgeReady",
-                () => callback(window.WebViewJavascriptBridge),
-                false
-            );
+    // Initialize WebViewJavascriptBridge for testing in browser
+    useEffect(() => {
+        if (!window.WebViewJavascriptBridge) {
+            console.log("Mocking WebViewJavascriptBridge for browser testing.");
+            window.WebViewJavascriptBridge = {
+                callHandler: (handlerName, data, callback) => {
+                    console.log(`Handler called: ${handlerName}`);
+                    if (handlerName === "getLastLocation") {
+                        callback({
+                            latitude: 37.7749,
+                            longitude: -122.4194,
+                            accuracy: 5,
+                            timestamp: new Date().toISOString(),
+                        });
+                    } else if (handlerName === "startLocationListener") {
+                        console.log("Location listener started.");
+                    }
+                },
+            };
         }
-    };
+    }, []);
 
-    const registerLocationCallback = (bridge) => {
-        bridge.registerHandler("locationCallBack", (data, responseCallback) => {
-            setCurrentLocation({
-                latitude: data.latitude,
-                longitude: data.longitude,
-                accuracy: data.accuracy,
-                timestamp: data.timestamp,
-            });
-            responseCallback("Location received successfully");
-        });
-    };
-
+    // Function to start location listener
     const startLocationListener = () => {
         if (window.WebViewJavascriptBridge) {
+            console.log("Starting location listener...");
             window.WebViewJavascriptBridge.callHandler(
                 "startLocationListener",
                 "",
-                () => {
-                    setStatusMessage("Location listener started successfully!");
+                (responseData) => {
+                    console.log("Location listener started:", responseData);
+                    setStatusMessage("Location listener started.");
                 }
             );
         } else {
@@ -47,33 +48,26 @@ const LocationTracker = () => {
         }
     };
 
-    const stopLocationListener = () => {
-        if (window.WebViewJavascriptBridge) {
-            window.WebViewJavascriptBridge.callHandler(
-                "stopLocationListener",
-                "",
-                () => {
-                    setStatusMessage("Location listener stopped.");
-                }
-            );
-        } else {
-            setStatusMessage("WebViewJavascriptBridge not initialized.");
-        }
-    };
-
+    // Function to get the last location
     const getLastLocation = () => {
         if (window.WebViewJavascriptBridge) {
+            console.log("Calling getLastLocation...");
             window.WebViewJavascriptBridge.callHandler(
                 "getLastLocation",
                 "",
                 (responseData) => {
-                    setCurrentLocation({
-                        latitude: responseData.latitude,
-                        longitude: responseData.longitude,
-                        accuracy: responseData.accuracy,
-                        timestamp: responseData.timestamp,
-                    });
-                    setStatusMessage("Last known location retrieved successfully!");
+                    console.log("Response from getLastLocation:", responseData);
+                    if (responseData) {
+                        setCurrentLocation({
+                            latitude: responseData.latitude || "Not available",
+                            longitude: responseData.longitude || "Not available",
+                            accuracy: responseData.accuracy || "Not available",
+                            timestamp: responseData.timestamp || "Not available",
+                        });
+                        setStatusMessage("Last known location retrieved successfully!");
+                    } else {
+                        setStatusMessage("No data received from getLastLocation.");
+                    }
                 }
             );
         } else {
@@ -81,48 +75,59 @@ const LocationTracker = () => {
         }
     };
 
-    useEffect(() => {
-        connectWebViewJavascriptBridge((bridge) => {
-            registerLocationCallback(bridge);
-        });
-    }, []);
-
     return (
         <div style={styles.container}>
-            <h1 style={styles.title}>Location Tracker</h1>
+            <h1 style={styles.header}>Location Tracker</h1>
+            <div style={styles.statusBox}>
+                <strong>Status: </strong>
+                <span>{statusMessage}</span>
+            </div>
             <div style={styles.buttonContainer}>
                 <button style={styles.button} onClick={startLocationListener}>
                     Start Location Listener
-                </button>
-                <button style={styles.button} onClick={stopLocationListener}>
-                    Stop Location Listener
                 </button>
                 <button style={styles.button} onClick={getLastLocation}>
                     Get Last Location
                 </button>
             </div>
-            {statusMessage && <p style={styles.status}>{statusMessage}</p>}
-            <div style={styles.locationInfo}>
+            <div style={styles.locationBox}>
                 <h3>Current Location:</h3>
-                <p><strong>Latitude:</strong> {currentLocation.latitude || "Not available"}</p>
-                <p><strong>Longitude:</strong> {currentLocation.longitude || "Not available"}</p>
-                <p><strong>Accuracy:</strong> {currentLocation.accuracy || "Not available"} meters</p>
-                <p><strong>Timestamp:</strong> {currentLocation.timestamp || "Not available"}</p>
+                <p>
+                    <strong>Latitude:</strong> {currentLocation.latitude}
+                </p>
+                <p>
+                    <strong>Longitude:</strong> {currentLocation.longitude}
+                </p>
+                <p>
+                    <strong>Accuracy:</strong> {currentLocation.accuracy} meters
+                </p>
+                <p>
+                    <strong>Timestamp:</strong> {currentLocation.timestamp}
+                </p>
             </div>
         </div>
     );
 };
 
+// Styles for the UI
 const styles = {
     container: {
-        fontFamily: "Arial, sans-serif",
-        color: "#333",
+        fontFamily: "'Arial', sans-serif",
         padding: "20px",
-        textAlign: "center",
+        backgroundColor: "#f0f4f8",
+        minHeight: "100vh",
     },
-    title: {
-        fontSize: "24px",
+    header: {
+        textAlign: "center",
+        color: "#333",
+    },
+    statusBox: {
         marginBottom: "20px",
+        padding: "10px",
+        backgroundColor: "#eaf2f8",
+        border: "1px solid #d1dce3",
+        borderRadius: "5px",
+        fontSize: "16px",
     },
     buttonContainer: {
         display: "flex",
@@ -133,24 +138,22 @@ const styles = {
     button: {
         padding: "10px 20px",
         fontSize: "16px",
-        backgroundColor: "#4CAF50",
-        color: "white",
+        backgroundColor: "#007BFF",
+        color: "#fff",
         border: "none",
         borderRadius: "5px",
         cursor: "pointer",
+        transition: "background-color 0.3s ease",
     },
-    status: {
-        margin: "10px 0",
-        color: "#007BFF",
-        fontStyle: "italic",
+    buttonHover: {
+        backgroundColor: "#0056b3",
     },
-    locationInfo: {
-        marginTop: "20px",
-        padding: "10px",
-        border: "1px solid #ccc",
+    locationBox: {
+        padding: "15px",
+        backgroundColor: "#ffffff",
+        border: "1px solid #d1dce3",
         borderRadius: "5px",
-        display: "inline-block",
-        textAlign: "left",
+        boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
     },
 };
 
