@@ -9,7 +9,9 @@ const LocationTracker = () => {
     });
     const [statusMessage, setStatusMessage] = useState("Idle");
 
-    // Initialize WebViewJavascriptBridge for testing in browser
+    const apiKey = "AIzaSyBA9bzem6pdx8Ke_ubaEnp9WTu42SJCfhw"; // Replace with your Google Maps API key
+
+    // Initialize WebViewJavascriptBridge for testing in the browser
     useEffect(() => {
         if (!window.WebViewJavascriptBridge) {
             console.log("Mocking WebViewJavascriptBridge for browser testing.");
@@ -105,6 +107,18 @@ const LocationTracker = () => {
                     <strong>Timestamp:</strong> {currentLocation.timestamp}
                 </p>
             </div>
+            {currentLocation.latitude !== "Not available" && (
+                <div style={styles.mapContainer}>
+                    <iframe
+                        title="Google Maps"
+                        width="100%"
+                        height="400"
+                        style={{ border: "0", borderRadius: "10px" }}
+                        src={`https://www.google.com/maps/embed/v1/view?key=${apiKey}&center=${currentLocation.latitude},${currentLocation.longitude}&zoom=15`}
+                        allowFullScreen
+                    ></iframe>
+                </div>
+            )}
         </div>
     );
 };
@@ -145,15 +159,15 @@ const styles = {
         cursor: "pointer",
         transition: "background-color 0.3s ease",
     },
-    buttonHover: {
-        backgroundColor: "#0056b3",
-    },
     locationBox: {
         padding: "15px",
         backgroundColor: "#ffffff",
         border: "1px solid #d1dce3",
         borderRadius: "5px",
         boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+    },
+    mapContainer: {
+        marginTop: "20px",
     },
 };
 
