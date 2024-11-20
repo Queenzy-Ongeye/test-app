@@ -63,25 +63,27 @@ const LocationTracker = () => {
           responseCallback("js success!");
         });
         bridge.registerHandler("locationCallBack", (data, responseCallback) => {
-          const parsedData = JSON.parse(data);
-          const newPoint = {
-            lat: parsedData.latitude,
-            lng: parsedData.longitude,
-          };
-          setCurrentLocation({
-            latitude: parsedData.latitude,
-            longitude: parsedData.longitude,
-            accuracy: parsedData.accuracy,
-            timestamp: parsedData.timestamp,
-          });
-          setJourney((prev) => [...prev, newPoint]); // Append to journey
-          responseCallback("Location received successfully");
+          const parsedData = JSON.parse(data.data);
+          if (parsedData) {
+            const newPoint = {
+              lat: parsedData.latitude,
+              lng: parsedData.longitude,
+            };
+            setCurrentLocation({
+              latitude: parsedData.latitude,
+              longitude: parsedData.longitude,
+              accuracy: parsedData.accuracy,
+              timestamp: parsedData.timestamp,
+            });
+            setJourney((prev) => [...prev, newPoint]); // Append to journey
+            responseCallback("Location received successfully");
+          }
         });
         setBridgeInitialized(true);
       }
     };
 
-    connectWebViewJavascriptBridge(setupBridge)
+    connectWebViewJavascriptBridge(setupBridge);
   }, [bridgeInitialized]);
 
   const startLocationListener = () => {
@@ -136,7 +138,6 @@ const LocationTracker = () => {
       setStatusMessage("WebViewJavascriptBridge is not initialized.");
     }
   };
-
 
   return (
     <div style={styles.container}>
