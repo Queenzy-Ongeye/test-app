@@ -41,43 +41,37 @@ function App() {
     callWebViewJavascriptBridge("getLastLocation", "", (response) => {
       try {
         // Step 1: Parse the top-level response
-        const parsedResponse = JSON.parse(response); 
-        console.info("Parsed Response:", parsedResponse);
-  
-        // Step 2: Parse the `responseData` field
-        if (parsedResponse.responseData) {
-          const responseData = JSON.parse(parsedResponse.responseData);
-          console.info("Parsed Response Data:", responseData);
-  
-          // Step 3: Parse the `respData` field
-          if (responseData.respData) {
-            const locationData = JSON.parse(responseData.respData);
-            console.info("Parsed Location Data:", locationData);
-  
-            // Step 4: Update the state with latitude and longitude
-            if (locationData.latitude !== undefined && locationData.longitude !== undefined) {
-              const location = {
-                latitude: parseFloat(locationData.latitude),
-                longitude: parseFloat(locationData.longitude),
-              };
-              setLocationData(location);
-              setDebugMessage("Location data fetched successfully.");
-            } else {
-              setDebugMessage("Latitude or Longitude missing in location data.");
-            }
+        const parsedResponse = JSON.parse(response);
+        console.log("Parsed Response:", parsedResponse);
+
+        // Step 2: Parse the `data` field
+        if (parsedResponse.data) {
+          const locationData = JSON.parse(parsedResponse.data);
+          console.log("Parsed Location Data:", locationData);
+
+          // Step 3: Update the state with latitude and longitude
+          if (
+            locationData.latitude !== undefined &&
+            locationData.longitude !== undefined
+          ) {
+            const location = {
+              latitude: parseFloat(locationData.latitude),
+              longitude: parseFloat(locationData.longitude),
+            };
+            setLocationData(location);
+            setDebugMessage("Location data fetched successfully.");
           } else {
-            setDebugMessage("`respData` is missing or invalid in `responseData`.");
+            setDebugMessage("Latitude or Longitude missing in location data.");
           }
         } else {
-          setDebugMessage("`responseData` is missing or invalid.");
+          setDebugMessage("`data` field is missing or invalid.");
         }
       } catch (error) {
-        setDebugMessage("Error parsing response. Check the infos for details.");
+        setDebugMessage("Error parsing response. Check the logs for details.");
         console.error("Error parsing response:", error);
       }
     });
   };
-  
 
   return (
     <div style={styles.container}>
