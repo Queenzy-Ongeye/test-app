@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from "react";
-import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
+import React, { useEffect, useState } from 'react';
 
 const LocationTracker = () => {
     const [currentLocation, setCurrentLocation] = useState({
@@ -9,7 +8,10 @@ const LocationTracker = () => {
         timestamp: null,
     });
     const [statusMessage, setStatusMessage] = useState("");
-    const API_KEY = "AIzaSyBA9bzem6pdx8Ke_ubaEnp9WTu42SJCfhw"; // Replace with your Google API Key
+    const [snappedLocation, setSnappedLocation] = useState({});
+    const [distanceMatrix, setDistanceMatrix] = useState({});
+    const API_KEY = "AIzaSyBA9bzem6pdx8Ke_ubaEnp9WTu42SJCfhw"; // Replace with your Google Maps API key"; // Replace with your Google API Key
+    const TARGET_LOCATION = { latitude: 37.7749, longitude: -122.4194 }; // Example: San Francisco, CA
 
     // Initialize WebViewJavascriptBridge
     const connectWebViewJavascriptBridge = (callback) => {
@@ -29,11 +31,13 @@ const LocationTracker = () => {
         bridge.registerHandler("locationCallBack", (data, responseCallback) => {
             console.info("Received Location Data:", data);
             setCurrentLocation({
-                latitude: parseFloat(data.latitude),
-                longitude: parseFloat(data.longitude),
+                latitude: data.latitude,
+                longitude: data.longitude,
                 accuracy: data.accuracy,
                 timestamp: data.timestamp,
             });
+            fetchSnappedLocation(data.latitude, data.longitude);
+            fetchDistanceMatrix(data.latitude, data.longitude);
             responseCallback("Location received successfully");
         });
     };
@@ -70,6 +74,34 @@ const LocationTracker = () => {
         }
     };
 
+    // Fetch snapped location using Google Roads API
+    const fetchSnappedLocation = async (latitude, longitude) => {
+        try {
+            const response = await fetch(
+                `https://roads.googleapis.com/v1/snapToRoads?path=${latitude},${longitude}&interpolate=true&key=${API_KEY}`
+            );
+            const data = await response.json();
+            console.info("Snapped Location Data:", data);
+            setSnappedLocation(data.snappedPoints ? data.snappedPoints[0].location : {});
+        } catch (error) {
+            console.error("Error fetching snapped location:", error);
+        }
+    };
+
+    // Fetch distance and duration using Google Distance Matrix API
+    const fetchDistanceMatrix = async (latitude, longitude) => {
+        try {
+            const response = await fetch(
+                `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${latitude},${longitude}&destinations=${TARGET_LOCATION.latitude},${TARGET_LOCATION.longitude}&key=${API_KEY}`
+            );
+            const data = await response.json();
+            console.info("Distance Matrix Data:", data);
+            setDistanceMatrix(data.rows[0].elements[0]);
+        } catch (error) {
+            console.error("Error fetching distance matrix:", error);
+        }
+    };
+
     // Initialize bridge and register callback on component mount
     useEffect(() => {
         connectWebViewJavascriptBridge((bridge) => {
@@ -89,28 +121,22 @@ const LocationTracker = () => {
                 </button>
             </div>
             {statusMessage && <p style={styles.status}>{statusMessage}</p>}
-            <div style={styles.mapContainer}>
-                {currentLocation.latitude && currentLocation.longitude ? (
-                    <LoadScript googleMapsApiKey={API_KEY}>
-                        <GoogleMap
-                            mapContainerStyle={styles.map}
-                            center={{
-                                lat: currentLocation.latitude,
-                                lng: currentLocation.longitude,
-                            }}
-                            zoom={15}
-                        >
-                            <Marker
-                                position={{
-                                    lat: currentLocation.latitude,
-                                    lng: currentLocation.longitude,
-                                }}
-                            />
-                        </GoogleMap>
-                    </LoadScript>
-                ) : (
-                    <p>Waiting for location data...</p>
-                )}
+            <div style={styles.locationInfo}>
+                <h3>Current Location:</h3>
+                <p><strong>Latitude:</strong> {currentLocation.latitude || "Not available"}</p>
+                <p><strong>Longitude:</strong> {currentLocation.longitude || "Not available"}</p>
+                <p><strong>Accuracy:</strong> {currentLocation.accuracy || "Not available"} meters</p>
+                <p><strong>Timestamp:</strong> {currentLocation.timestamp || "Not available"}</p>
+            </div>
+            <div style={styles.locationInfo}>
+                <h3>Snapped Location:</h3>
+                <p><strong>Latitude:</strong> {snappedLocation.latitude || "Not available"}</p>
+                <p><strong>Longitude:</strong> {snappedLocation.longitude || "Not available"}</p>
+            </div>
+            <div style={styles.locationInfo}>
+                <h3>Distance Matrix:</h3>
+                <p><strong>Distance:</strong> {distanceMatrix.distance?.text || "Not available"}</p>
+                <p><strong>Duration:</strong> {distanceMatrix.duration?.text || "Not available"}</p>
             </div>
         </div>
     );
@@ -148,14 +174,13 @@ const styles = {
         color: "#007BFF",
         fontStyle: "italic",
     },
-    mapContainer: {
+    locationInfo: {
         marginTop: "20px",
-        width: "100%",
-        height: "400px",
-    },
-    map: {
-        width: "100%",
-        height: "400px",
+        padding: "10px",
+        border: "1px solid #ccc",
+        borderRadius: "5px",
+        display: "inline-block",
+        textAlign: "left",
     },
 };
 
