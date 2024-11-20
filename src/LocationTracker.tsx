@@ -134,7 +134,7 @@ export default function LocationTracker() {
         <CardContent className="space-y-4 sm:space-y-6">
           <div className="bg-blue-50 border border-blue-200 rounded-md p-3 sm:p-4 text-sm sm:text-base">
             <strong className="block mb-1">Status:</strong>
-            <span>{statusMessage}</span>
+            <span aria-live="polite">{statusMessage}</span>
           </div>
           <div className="bg-white border border-gray-200 rounded-md p-3 sm:p-4 shadow text-sm sm:text-base">
             <h3 className="text-base sm:text-lg font-semibold mb-2">
