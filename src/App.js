@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 
 function App() {
   const [locationData, setLocationData] = useState(null); // State to store location data
-  const [rawResponse, setRawResponse] = useState(null); // State to store raw response for debugging
-  const [debugMessage, setDebugMessage] = useState(''); // State to store debug messages
+  const [debugMessage, setDebugMessage] = useState(''); // Debug message
 
   // Function to communicate with the WebView bridge
   const callWebViewJavascriptBridge = (handlerName, data, callback) => {
@@ -21,51 +21,37 @@ function App() {
   // Start Location Listener
   const startLocationListener = () => {
     setDebugMessage('Starting location listener...');
-    callWebViewJavascriptBridge('startLocationListener', '', (response) => {
-      setDebugMessage('Location listener started. You can now fetch the last location.');
+    callWebViewJavascriptBridge('startLocationListener', '', () => {
+      setDebugMessage('Location listener started. Wait a few seconds before fetching the last location.');
     });
   };
 
-  // Stop Location Listener
-  const stopLocationListener = () => {
-    setDebugMessage('Stopping location listener...');
-    callWebViewJavascriptBridge('stopLocationListener', '', (response) => {
-      setDebugMessage('Location listener stopped.');
-    });
-  };
-
-  // Fetch Last Location (with a delay)
+  // Fetch Last Location
   const getLastLocation = () => {
     setDebugMessage('Fetching last known location...');
-    setTimeout(() => {
-      callWebViewJavascriptBridge('getLastLocation', '', (response) => {
-        setRawResponse(response); // Save raw response for debugging
-        try {
-          const parsedResponse = JSON.parse(response); // Parse the first layer
-          if (parsedResponse.responseData) {
-            const nestedData = JSON.parse(parsedResponse.responseData); // Parse the nested responseData
-            setLocationData(nestedData.respData); // Set the relevant location data
-            setDebugMessage('Location data fetched successfully.');
-          } else {
-            setDebugMessage('Invalid responseData format.');
-          }
-        } catch (error) {
-          setDebugMessage('Error parsing response. Check raw response for details.');
-          console.error('Error parsing response:', error);
+    callWebViewJavascriptBridge('getLastLocation', '', (response) => {
+      try {
+        const parsedResponse = JSON.parse(response); // Parse the first layer
+        if (parsedResponse.responseData) {
+          const nestedData = JSON.parse(parsedResponse.responseData); // Parse the nested responseData
+          setLocationData(nestedData.respData); // Set the relevant location data
+          setDebugMessage('Location data fetched successfully.');
+        } else {
+          setDebugMessage('Invalid responseData format.');
         }
-      });
-    }, 2000); // Adding a 2-second delay
+      } catch (error) {
+        setDebugMessage('Error parsing response. Check the logs for details.');
+        console.error('Error parsing response:', error);
+      }
+    });
   };
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Location Listener</h1>
+      <h1 style={styles.title}>Location Listener with Map</h1>
       <div style={styles.buttonContainer}>
         <button style={styles.button} onClick={startLocationListener}>
           Start Location Listener
-        </button>
-        <button style={styles.button} onClick={stopLocationListener}>
-          Stop Location Listener
         </button>
         <button style={styles.button} onClick={getLastLocation}>
           Get Last Location
@@ -75,26 +61,24 @@ function App() {
       {/* Debug Message */}
       {debugMessage && <p style={styles.debugMessage}>{debugMessage}</p>}
 
-      {/* Displaying raw response for debugging */}
-      {rawResponse && (
-        <div style={styles.card}>
-          <h2 style={styles.cardTitle}>Raw Response</h2>
-          <pre style={styles.cardContent}>{rawResponse}</pre>
-        </div>
-      )}
-
-      {/* Displaying parsed location data */}
+      {/* Map Section */}
       {locationData && (
-        <div style={styles.card}>
-          <h2 style={styles.cardTitle}>Location Data</h2>
-          <div style={styles.locationData}>
-            <p style={styles.dataField}>
-              <strong>Latitude:</strong> {locationData.latitude || 'N/A'}
-            </p>
-            <p style={styles.dataField}>
-              <strong>Longitude:</strong> {locationData.longitude || 'N/A'}
-            </p>
-          </div>
+        <div style={styles.mapContainer}>
+          <MapContainer
+            center={[locationData.latitude, locationData.longitude]}
+            zoom={15}
+            style={{ height: '400px', width: '100%' }}
+          >
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            />
+            <Marker position={[locationData.latitude, locationData.longitude]}>
+              <Popup>
+                Latitude: {locationData.latitude}, Longitude: {locationData.longitude}
+              </Popup>
+            </Marker>
+          </MapContainer>
         </div>
       )}
     </div>
@@ -103,7 +87,7 @@ function App() {
 
 export default App;
 
-// Inline styles for the app
+// Inline styles
 const styles = {
   container: {
     width: '100%',
@@ -149,34 +133,11 @@ const styles = {
     fontSize: '1rem',
     textAlign: 'center',
   },
-  card: {
-    width: '90%',
-    maxWidth: '600px',
-    backgroundColor: '#333333',
-    borderRadius: '10px',
-    padding: '20px',
+  mapContainer: {
     marginTop: '20px',
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.5)',
-  },
-  cardTitle: {
-    fontSize: '1.5rem',
-    marginBottom: '10px',
-    color: '#FFD700',
-  },
-  cardContent: {
-    color: '#00FF00',
-    backgroundColor: '#1A1A1A',
-    padding: '10px',
-    borderRadius: '5px',
-    overflowX: 'auto',
-  },
-  locationData: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  },
-  dataField: {
-    fontSize: '1rem',
-    color: '#FFFFFF',
+    width: '100%',
+    maxWidth: '600px',
+    borderRadius: '10px',
+    overflow: 'hidden',
   },
 };
