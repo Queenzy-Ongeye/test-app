@@ -11,10 +11,14 @@ function App() {
   // Function to communicate with the WebView bridge
   const callWebViewJavascriptBridge = (handlerName, data, callback) => {
     if (window.WebViewJavascriptBridge) {
-      window.WebViewJavascriptBridge.callHandler(handlerName, data, (response) => {
-        console.log(`${handlerName} response:`, response);
-        if (callback) callback(response);
-      });
+      window.WebViewJavascriptBridge.callHandler(
+        handlerName,
+        data,
+        (response) => {
+          console.log(`${handlerName} response:`, response);
+          if (callback) callback(response);
+        }
+      );
     } else {
       console.warn("WebViewJavascriptBridge is not available.");
       setDebugMessage("WebViewJavascriptBridge is not available.");
@@ -25,29 +29,46 @@ function App() {
   const startLocationListener = () => {
     setDebugMessage("Starting location listener...");
     callWebViewJavascriptBridge("startLocationListener", "", () => {
-      setDebugMessage("Location listener started. Wait a few seconds before fetching the last location.");
+      setDebugMessage(
+        "Location listener started. Wait a few seconds before fetching the last location."
+      );
     });
   };
 
   // Fetch Last Location
   const getLastLocation = () => {
     setDebugMessage("Fetching last known location...");
-    const callWebViewJavascriptBridge = (handlerName, data, callback) => {
-      if (window.WebViewJavascriptBridge) {
-        window.WebViewJavascriptBridge.callHandler(handlerName, data, (response) => {
-          try {
-            const parsedResponse = JSON.parse(response);
-            callback(null, parsedResponse);
-          } catch (error) {
-            callback(error, null);
+    callWebViewJavascriptBridge("getLastLocation", "", (response) => {
+      try {
+        const parsedResponse = JSON.parse(response); // Parse the outer response
+        console.log("Outer Parsed Response:", parsedResponse);
+
+        // Check if `responseData` exists and needs further parsing
+        if (parsedResponse.responseData) {
+          const nestedData = JSON.parse(
+            parsedResponse.responseData.replace(/\\/g, "")
+          ); // Remove escape characters
+          console.log("Nested Parsed Data:", nestedData);
+
+          // Extract latitude and longitude
+          if (nestedData.latitude && nestedData.longitude) {
+            const location = {
+              latitude: parseFloat(nestedData.latitude),
+              longitude: parseFloat(nestedData.longitude),
+            };
+            setLocationData(location); // Update state
+            setDebugMessage("Location data fetched successfully.");
+          } else {
+            setDebugMessage("Latitude or Longitude missing in nested data.");
           }
-        });
-      } else {
-        console.error("WebViewJavascriptBridge is not initialized.");
-        callback(new Error("WebViewJavascriptBridge is not initialized."), null);
+        } else {
+          setDebugMessage("No valid responseData found.");
+        }
+      } catch (error) {
+        setDebugMessage("Error parsing response. Check the logs for details.");
+        console.error("Error parsing response:", error);
       }
-    };
-    
+    });
   };
 
   return (
@@ -67,27 +88,27 @@ function App() {
 
       {/* Google Maps Section */}
       {locationData && locationData.latitude && locationData.longitude ? (
-        <div style={styles.mapContainer}>
-          <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
-            <GoogleMap
-              mapContainerStyle={{ height: "400px", width: "100%" }}
-              center={{
-                lat: parseFloat(locationData.latitude),
-                lng: parseFloat(locationData.longitude),
+        <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
+          <GoogleMap
+            mapContainerStyle={{ height: "400px", width: "100%" }}
+            center={{
+              lat: locationData.latitude,
+              lng: locationData.longitude,
+            }}
+            zoom={15}
+          >
+            <Marker
+              position={{
+                lat: locationData.latitude,
+                lng: locationData.longitude,
               }}
-              zoom={15}
-            >
-              <Marker
-                position={{
-                  lat: parseFloat(locationData.latitude),
-                  lng: parseFloat(locationData.longitude),
-                }}
-              />
-            </GoogleMap>
-          </LoadScript>
-        </div>
+            />
+          </GoogleMap>
+        </LoadScript>
       ) : (
-        <p style={styles.noLocationMessage}>No location data available to display on the map.</p>
+        <p style={styles.noLocationMessage}>
+          No location data available to display on the map.
+        </p>
       )}
     </div>
   );
