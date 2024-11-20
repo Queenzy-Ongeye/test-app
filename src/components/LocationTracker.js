@@ -14,6 +14,7 @@ const LocationTracker = () => {
     timestamp: null,
   });
   const [journey, setJourney] = useState([]); // Array to store the journey
+  const [lastConnection, setLastConnection] = useState(null); // State for last connection
   const [statusMessage, setStatusMessage] = useState("");
 
   const API_KEY = "AIzaSyBA9bzem6pdx8Ke_ubaEnp9WTu42SJCfhw"; // Replace with your API key
@@ -99,6 +100,69 @@ const LocationTracker = () => {
     }
   };
 
+  // Fetch Last Location
+  const getLastLocation = () => {
+    setStatusMessage("Fetching last known location...");
+    connectWebViewJavascriptBridge((bridge) => {
+      bridge.callHandler("getLastLocation", "", (response) => {
+        try {
+          const parsedResponse = JSON.parse(response);
+          console.log("Parsed Response:", parsedResponse);
+
+          if (parsedResponse.data) {
+            const locationData = JSON.parse(parsedResponse.data);
+            console.log("Parsed Location Data:", locationData);
+
+            if (
+              locationData.latitude !== undefined &&
+              locationData.longitude !== undefined
+            ) {
+              const location = {
+                latitude: parseFloat(locationData.latitude),
+                longitude: parseFloat(locationData.longitude),
+              };
+              setCurrentLocation(location);
+            } else {
+              setStatusMessage(
+                "Latitude or Longitude missing in location data."
+              );
+            }
+          } else {
+            setStatusMessage("`data` field is missing or invalid.");
+          }
+        } catch (error) {
+          setStatusMessage("Error parsing response. Check the logs for details.");
+          console.error("Error parsing response:", error);
+        }
+      });
+    });
+  };
+
+  // Fetch Last Connection
+  const getLastConnection = () => {
+    setStatusMessage("Fetching last connection details...");
+    connectWebViewJavascriptBridge((bridge) => {
+      bridge.callHandler("getLastConnection", "", (response) => {
+        try {
+          const parsedResponse = JSON.parse(response);
+          console.log("Parsed Last Connection Response:", parsedResponse);
+
+          if (parsedResponse) {
+            setLastConnection(parsedResponse); // Store last connection details
+            setStatusMessage("Last connection details fetched successfully.");
+          } else {
+            setStatusMessage("No last connection details available.");
+          }
+        } catch (error) {
+          setStatusMessage(
+            "Error parsing last connection response. Check the logs for details."
+          );
+          console.error("Error parsing last connection response:", error);
+        }
+      });
+    });
+  };
+
   // Register the bridge callback when the component mounts
   useEffect(() => {
     connectWebViewJavascriptBridge((bridge) => {
@@ -112,6 +176,12 @@ const LocationTracker = () => {
       <div style={styles.buttonContainer}>
         <button style={styles.button} onClick={startLocationListener}>
           Start Location Listener
+        </button>
+        <button style={styles.button} onClick={getLastLocation}>
+          Get Last Location
+        </button>
+        <button style={styles.button} onClick={getLastConnection}>
+          Get Last Connection
         </button>
         <button style={styles.button} onClick={stopLocationListener}>
           Stop Location Listener
@@ -137,35 +207,11 @@ const LocationTracker = () => {
           {currentLocation.timestamp || "Not available"}
         </p>
       </div>
-      {isLoaded && (
-        <GoogleMap
-          center={{
-            lat: currentLocation.latitude || 0, // Default to the equator if no location
-            lng: currentLocation.longitude || 0, // Default to the prime meridian
-          }}
-          zoom={15} // Adjust zoom for better view
-          mapContainerStyle={styles.mapContainer}
-        >
-          {currentLocation.latitude && (
-            <Marker
-              position={{
-                lat: currentLocation.latitude,
-                lng: currentLocation.longitude,
-              }}
-              label="You"
-            />
-          )}
-          {journey.length > 1 && (
-            <Polyline
-              path={journey}
-              options={{
-                strokeColor: "#FF0000",
-                strokeOpacity: 0.8,
-                strokeWeight: 2,
-              }}
-            />
-          )}
-        </GoogleMap>
+      {lastConnection && (
+        <div style={styles.locationInfo}>
+          <h3>Last Connection:</h3>
+          <pre>{JSON.stringify(lastConnection, null, 2)}</pre>
+        </div>
       )}
     </div>
   );
@@ -210,11 +256,6 @@ const styles = {
     borderRadius: "5px",
     display: "inline-block",
     textAlign: "left",
-  },
-  mapContainer: {
-    height: "400px",
-    width: "100%",
-    marginTop: "20px",
   },
 };
 
