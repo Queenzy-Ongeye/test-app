@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import LocationTracker from "./components/LocationTracker.tsx";
+import LocationTracker from "./components/LocationTracker";
 
 function App() {
   return (

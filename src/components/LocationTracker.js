@@ -2,33 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  Button,
-} from "./ui-components.tsx";
 
-interface Location {
-  latitude: number;
-  longitude: number;
-  accuracy: number;
-  timestamp: string;
-}
-interface WebViewJavascriptBridge {
-  callHandler: (
-    handlerName: string,
-    data: any,
-    callback: (response: any) => void
-  ) => void;
-}
 
-declare global {
-  interface Window {
-    WebViewJavascriptBridge?: WebViewJavascriptBridge;
-  }
-}
 const MapPinIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
@@ -53,12 +28,12 @@ const CrosshairIcon = () => (
 );
 
 export default function LocationTracker() {
-  const [startingLocation, setStartingLocation] = useState<Location | null>(
+  const [startingLocation, setStartingLocation] = useState(
     null
   );
-  const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
-  const [distance, setDistance] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string>("Idle");
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [distance, setDistance] = useState(null);
+  const [statusMessage, setStatusMessage] = useState("Idle");
 
   const apiKey = "AIzaSyBA9bzem6pdx8Ke_ubaEnp9WTu42SJCfhw"; // Replace with your Google Maps API key
 
@@ -87,8 +62,8 @@ export default function LocationTracker() {
     }
   }, []);
 
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const toRad = (value: number): number => (value * Math.PI) / 180;
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const toRad = (value) => (value * Math.PI) / 180;
 
     const R = 6371; // Radius of Earth in kilometers
     const dLat = toRad(lat2 - lat1);
@@ -109,7 +84,7 @@ export default function LocationTracker() {
       window.WebViewJavascriptBridge.callHandler(
         "getLastLocation",
         "",
-        (responseData: Location) => {
+        (responseData) => {
           console.log("Starting location set:", responseData);
           if (responseData) {
             setStartingLocation(responseData);
@@ -128,7 +103,7 @@ export default function LocationTracker() {
       window.WebViewJavascriptBridge.callHandler(
         "getLastLocation",
         "",
-        (responseData: Location) => {
+        (responseData) => {
           console.log("Last location retrieved:", responseData);
           if (responseData) {
             setCurrentLocation(responseData);
