@@ -128,7 +128,7 @@ const LocationTracker = () => {
             setStatusMessage("Journey retrieved successfully!");
           } catch (error) {
             setStatusMessage("Error parsing journey data.");
-            console.error("Error parsing response data:", error);
+            console.error("Error parsing response data:", error.message);
           }
         }
       );
