@@ -1,0 +1,67 @@
+.tracker-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    background-color: #f9f9f9;
+    color: #333;
+    min-height: 100vh;
+  }
+  
+  .tracker-header {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+  
+  .tracker-status {
+    margin-bottom: 20px;
+    font-size: 1rem;
+    color: #555;
+  }
+  
+  .tracker-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px; /* Adds spacing between buttons */
+    margin-bottom: 20px;
+    padding: 4px;
+  }
+  
+  
+  .tracker-button {
+    padding: 10px 20px;
+    background-color: black;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+  
+  .tracker-button:hover {
+    background-color: #444;
+  }
+  
+  .tracker-map {
+    width: 100%;
+    max-width: 600px;
+    height: 400px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+  }
+  
+  .tracker-info {
+    max-width: 600px;
+    text-align: left;
+    font-size: 0.9rem;
+  }
+  
+  .tracker-info p {
+    margin: 5px 0;
+  }
+  
+  .tracker-info strong {
+    font-weight: bold;
+  }
