@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from "react";
+import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 
 const LocationTracker = () => {
     const [currentLocation, setCurrentLocation] = useState({
@@ -10,8 +11,22 @@ const LocationTracker = () => {
     const [statusMessage, setStatusMessage] = useState("");
     const [snappedLocation, setSnappedLocation] = useState({});
     const [distanceMatrix, setDistanceMatrix] = useState({});
-    const API_KEY = "AIzaSyBA9bzem6pdx8Ke_ubaEnp9WTu42SJCfhw"; // Replace with your Google Maps API key"; // Replace with your Google API Key
-    const TARGET_LOCATION = { latitude: 37.7749, longitude: -122.4194 }; // Example: San Francisco, CA
+    const [targetLocation, setTargetLocation] = useState({
+        latitude: 37.7749, // default to San Francisco
+        longitude: -122.4194,
+    });
+
+    const API_KEY = "AIzaSyBA9bzem6pdx8Ke_ubaEnp9WTu42SJCfhw"; // Replace with your actual API key
+
+    // Memoize the Google Maps API loader to prevent it from being called multiple times
+    const { isLoaded } = useJsApiLoader(
+        useMemo(() => ({
+            googleMapsApiKey: API_KEY,
+            libraries: ["maps"],
+            language: "en",
+            region: "US",
+        }), [API_KEY]) // Ensure it only re-runs when API_KEY changes
+    );
 
     // Initialize WebViewJavascriptBridge
     const connectWebViewJavascriptBridge = (callback) => {
@@ -29,7 +44,6 @@ const LocationTracker = () => {
     // Register handlers for receiving location updates
     const registerLocationCallback = (bridge) => {
         bridge.registerHandler("locationCallBack", (data, responseCallback) => {
-            console.info("Received Location Data:", data);
             setCurrentLocation({
                 latitude: data.latitude,
                 longitude: data.longitude,
@@ -42,33 +56,22 @@ const LocationTracker = () => {
         });
     };
 
-    // Start the location listener
+    // Start and stop location listeners
     const startLocationListener = () => {
         if (window.WebViewJavascriptBridge) {
-            window.WebViewJavascriptBridge.callHandler(
-                "startLocationListener",
-                "",
-                (responseData) => {
-                    console.info("Location Listener Started:", responseData);
-                    setStatusMessage("Location listener started successfully!");
-                }
-            );
+            window.WebViewJavascriptBridge.callHandler("startLocationListener", "", (responseData) => {
+                setStatusMessage("Location listener started successfully!");
+            });
         } else {
             setStatusMessage("WebViewJavascriptBridge not initialized.");
         }
     };
 
-    // Stop the location listener
     const stopLocationListener = () => {
         if (window.WebViewJavascriptBridge) {
-            window.WebViewJavascriptBridge.callHandler(
-                "stopLocationListener",
-                "",
-                (responseData) => {
-                    console.info("Location Listener Stopped:", responseData);
-                    setStatusMessage("Location listener stopped.");
-                }
-            );
+            window.WebViewJavascriptBridge.callHandler("stopLocationListener", "", (responseData) => {
+                setStatusMessage("Location listener stopped.");
+            });
         } else {
             setStatusMessage("WebViewJavascriptBridge not initialized.");
         }
@@ -81,7 +84,6 @@ const LocationTracker = () => {
                 `https://roads.googleapis.com/v1/snapToRoads?path=${latitude},${longitude}&interpolate=true&key=${API_KEY}`
             );
             const data = await response.json();
-            console.info("Snapped Location Data:", data);
             setSnappedLocation(data.snappedPoints ? data.snappedPoints[0].location : {});
         } catch (error) {
             console.error("Error fetching snapped location:", error);
@@ -92,13 +94,38 @@ const LocationTracker = () => {
     const fetchDistanceMatrix = async (latitude, longitude) => {
         try {
             const response = await fetch(
-                `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${latitude},${longitude}&destinations=${TARGET_LOCATION.latitude},${TARGET_LOCATION.longitude}&key=${API_KEY}`
+                `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${latitude},${longitude}&destinations=${targetLocation.latitude},${targetLocation.longitude}&key=${API_KEY}`
             );
             const data = await response.json();
-            console.info("Distance Matrix Data:", data);
             setDistanceMatrix(data.rows[0].elements[0]);
         } catch (error) {
             console.error("Error fetching distance matrix:", error);
+        }
+    };
+
+    // Get last known location using the Geolocation API (for browsers that support it)
+    const getLastLocation = () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude, accuracy } = position.coords;
+                    setCurrentLocation({
+                        latitude,
+                        longitude,
+                        accuracy,
+                        timestamp: position.timestamp,
+                    });
+                    setStatusMessage("Last known location fetched successfully!");
+                    fetchSnappedLocation(latitude, longitude);
+                    fetchDistanceMatrix(latitude, longitude);
+                },
+                (error) => {
+                    setStatusMessage(`Error fetching last location: ${error.message}`);
+                },
+                { enableHighAccuracy: true }
+            );
+        } else {
+            setStatusMessage("Geolocation is not supported by this browser.");
         }
     };
 
@@ -119,6 +146,9 @@ const LocationTracker = () => {
                 <button style={styles.button} onClick={stopLocationListener}>
                     Stop Location Listener
                 </button>
+                <button style={styles.button} onClick={getLastLocation}>
+                    Get Last Known Location
+                </button>
             </div>
             {statusMessage && <p style={styles.status}>{statusMessage}</p>}
             <div style={styles.locationInfo}>
@@ -128,16 +158,42 @@ const LocationTracker = () => {
                 <p><strong>Accuracy:</strong> {currentLocation.accuracy || "Not available"} meters</p>
                 <p><strong>Timestamp:</strong> {currentLocation.timestamp || "Not available"}</p>
             </div>
-            <div style={styles.locationInfo}>
-                <h3>Snapped Location:</h3>
-                <p><strong>Latitude:</strong> {snappedLocation.latitude || "Not available"}</p>
-                <p><strong>Longitude:</strong> {snappedLocation.longitude || "Not available"}</p>
-            </div>
-            <div style={styles.locationInfo}>
-                <h3>Distance Matrix:</h3>
-                <p><strong>Distance:</strong> {distanceMatrix.distance?.text || "Not available"}</p>
-                <p><strong>Duration:</strong> {distanceMatrix.duration?.text || "Not available"}</p>
-            </div>
+            {isLoaded && (
+                <GoogleMap
+                    center={{
+                        lat: currentLocation.latitude || targetLocation.latitude,
+                        lng: currentLocation.longitude || targetLocation.longitude,
+                    }}
+                    zoom={12}
+                    mapContainerStyle={styles.mapContainer}
+                >
+                    {currentLocation.latitude && (
+                        <Marker
+                            position={{
+                                lat: currentLocation.latitude,
+                                lng: currentLocation.longitude,
+                            }}
+                            label="You"
+                        />
+                    )}
+                    {snappedLocation.latitude && (
+                        <Marker
+                            position={{
+                                lat: snappedLocation.latitude,
+                                lng: snappedLocation.longitude,
+                            }}
+                            label="Snapped"
+                        />
+                    )}
+                    <Marker
+                        position={{
+                            lat: targetLocation.latitude,
+                            lng: targetLocation.longitude,
+                        }}
+                        label="Target"
+                    />
+                </GoogleMap>
+            )}
         </div>
     );
 };
@@ -181,6 +237,11 @@ const styles = {
         borderRadius: "5px",
         display: "inline-block",
         textAlign: "left",
+    },
+    mapContainer: {
+        height: "400px",
+        width: "100%",
+        marginTop: "20px",
     },
 };
 
