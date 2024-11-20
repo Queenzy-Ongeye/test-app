@@ -1,10 +1,11 @@
+"use client";
 import React from "react";
-import LocationTracker from "./LocationTracker"; // Adjust the path based on your folder structure
+import LocationTracker from "./components/LocationTracker.tsx";
 
 function App() {
   return (
     <div>
-      <LocationTracker />
+        <LocationTracker/>
     </div>
   );
 }

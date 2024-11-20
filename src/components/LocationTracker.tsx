@@ -8,7 +8,7 @@ import {
   CardTitle,
   CardContent,
   Button,
-} from "./ui-components";
+} from "./ui-components.tsx";
 
 interface Location {
   latitude: number;
@@ -16,7 +16,6 @@ interface Location {
   accuracy: number;
   timestamp: string;
 }
-
 interface WebViewJavascriptBridge {
   callHandler: (
     handlerName: string,
@@ -30,52 +29,21 @@ declare global {
     WebViewJavascriptBridge?: WebViewJavascriptBridge;
   }
 }
-
 const MapPinIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
     <circle cx="12" cy="10" r="3"></circle>
   </svg>
 );
 
 const NavigationIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
   </svg>
 );
 
 const CrosshairIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10"></circle>
     <line x1="22" y1="12" x2="18" y2="12"></line>
     <line x1="6" y1="12" x2="2" y2="12"></line>
@@ -92,7 +60,7 @@ export default function LocationTracker() {
   const [distance, setDistance] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>("Idle");
 
-  const apiKey = "AIzaSyBA9bzem6pdx8Ke_ubaEnp9WTu42SJCfhw"; // Replace with your Google Maps API key
+  const apiKey = "YOUR_GOOGLE_MAPS_API_KEY"; // Replace with your Google Maps API key
 
   const containerStyle = {
     width: "100%",
@@ -119,12 +87,7 @@ export default function LocationTracker() {
     }
   }, []);
 
-  const calculateDistance = (
-    lat1: number,
-    lon1: number,
-    lat2: number,
-    lon2: number
-  ): number => {
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const toRad = (value: number): number => (value * Math.PI) / 180;
 
     const R = 6371; // Radius of Earth in kilometers
@@ -223,9 +186,7 @@ export default function LocationTracker() {
         <CardContent className="space-y-6 p-6">
           <div className="bg-blue-50 border border-blue-200 rounded-md p-4 text-sm sm:text-base shadow-inner">
             <strong className="block mb-1 text-blue-700">Status:</strong>
-            <span className="text-blue-600" aria-live="polite">
-              {statusMessage}
-            </span>
+            <span className="text-blue-600" aria-live="polite">{statusMessage}</span>
           </div>
           <div className="bg-white border border-gray-200 rounded-md p-4 shadow-md text-sm sm:text-base">
             <h3 className="text-lg sm:text-xl font-semibold mb-3 text-gray-800 flex items-center">
@@ -234,19 +195,11 @@ export default function LocationTracker() {
             </h3>
             <dl className="grid grid-cols-2 gap-3">
               <dt className="font-semibold text-gray-600">Latitude:</dt>
-              <dd className="text-gray-800">
-                {currentLocation?.latitude?.toFixed(6) ?? "Not available"}
-              </dd>
+              <dd className="text-gray-800">{currentLocation?.latitude?.toFixed(6) ?? "Not available"}</dd>
               <dt className="font-semibold text-gray-600">Longitude:</dt>
-              <dd className="text-gray-800">
-                {currentLocation?.longitude?.toFixed(6) ?? "Not available"}
-              </dd>
+              <dd className="text-gray-800">{currentLocation?.longitude?.toFixed(6) ?? "Not available"}</dd>
               <dt className="font-semibold text-gray-600">Accuracy:</dt>
-              <dd className="text-gray-800">
-                {currentLocation?.accuracy
-                  ? `${currentLocation.accuracy.toFixed(2)} meters`
-                  : "Not available"}
-              </dd>
+              <dd className="text-gray-800">{currentLocation?.accuracy ? `${currentLocation.accuracy.toFixed(2)} meters` : "Not available"}</dd>
               <dt className="font-semibold text-gray-600">Timestamp:</dt>
               <dd className="text-gray-800">
                 {currentLocation?.timestamp
@@ -263,18 +216,11 @@ export default function LocationTracker() {
           </div>
           <div className="mt-6">{renderMap()}</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Button
-              onClick={setStartLocation}
-              className="w-full flex items-center justify-center"
-              variant="outline"
-            >
+            <Button onClick={setStartLocation} className="w-full flex items-center justify-center" variant="outline">
               <NavigationIcon />
               <span className="ml-2">Set Start Location</span>
             </Button>
-            <Button
-              onClick={getLastLocation}
-              className="w-full flex items-center justify-center"
-            >
+            <Button onClick={getLastLocation} className="w-full flex items-center justify-center">
               <MapPinIcon />
               <span className="ml-2">Get Last Location</span>
             </Button>
