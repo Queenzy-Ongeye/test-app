@@ -63,7 +63,7 @@ const LocationTracker = () => {
           responseCallback("js success!");
         });
         bridge.registerHandler("locationCallBack", (data, responseCallback) => {
-          const parsedData = JSON.parse(data.data);
+          const parsedData = JSON.parse(data);
           if (parsedData) {
             const newPoint = {
               lat: parsedData.latitude,
