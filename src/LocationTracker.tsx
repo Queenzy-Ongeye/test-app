@@ -92,7 +92,7 @@ export default function LocationTracker() {
   const [distance, setDistance] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>("Idle");
 
-  const apiKey = "YOUR_GOOGLE_MAPS_API_KEY"; // Replace with your Google Maps API key
+  const apiKey = "AIzaSyBA9bzem6pdx8Ke_ubaEnp9WTu42SJCfhw"; // Replace with your Google Maps API key
 
   const containerStyle = {
     width: "100%",
