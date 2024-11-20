@@ -40,29 +40,36 @@ function App() {
     setDebugMessage("Fetching last known location...");
     callWebViewJavascriptBridge("getLastLocation", "", (response) => {
       try {
-        const parsedResponse = JSON.parse(response); // Parse the outer response
-        console.log("Outer Parsed Response:", parsedResponse);
-
-        // Check if `responseData` exists and needs further parsing
+        // Step 1: Parse the top-level response
+        const parsedResponse = JSON.parse(response); 
+        console.log("Parsed Response:", parsedResponse);
+  
+        // Step 2: Parse the `responseData` field
         if (parsedResponse.responseData) {
-          const nestedData = JSON.parse(
-            parsedResponse.responseData.replace(/\\/g, "")
-          ); // Remove escape characters
-          console.log("Nested Parsed Data:", nestedData);
-
-          // Extract latitude and longitude
-          if (nestedData.latitude && nestedData.longitude) {
-            const location = {
-              latitude: parseFloat(nestedData.latitude),
-              longitude: parseFloat(nestedData.longitude),
-            };
-            setLocationData(location); // Update state
-            setDebugMessage("Location data fetched successfully.");
+          const responseData = JSON.parse(parsedResponse.responseData);
+          console.log("Parsed Response Data:", responseData);
+  
+          // Step 3: Parse the `respData` field
+          if (responseData.respData) {
+            const locationData = JSON.parse(responseData.respData);
+            console.log("Parsed Location Data:", locationData);
+  
+            // Step 4: Update the state with latitude and longitude
+            if (locationData.latitude !== undefined && locationData.longitude !== undefined) {
+              const location = {
+                latitude: parseFloat(locationData.latitude),
+                longitude: parseFloat(locationData.longitude),
+              };
+              setLocationData(location);
+              setDebugMessage("Location data fetched successfully.");
+            } else {
+              setDebugMessage("Latitude or Longitude missing in location data.");
+            }
           } else {
-            setDebugMessage("Latitude or Longitude missing in nested data.");
+            setDebugMessage("`respData` is missing or invalid in `responseData`.");
           }
         } else {
-          setDebugMessage("No valid responseData found.");
+          setDebugMessage("`responseData` is missing or invalid.");
         }
       } catch (error) {
         setDebugMessage("Error parsing response. Check the logs for details.");
@@ -70,6 +77,7 @@ function App() {
       }
     });
   };
+  
 
   return (
     <div style={styles.container}>
