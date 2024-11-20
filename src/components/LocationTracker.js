@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker, Polyline, useJsApiLoader } from "@react-google-maps/api";
 
 const LocationTracker = () => {
     const [currentLocation, setCurrentLocation] = useState({
@@ -8,27 +8,20 @@ const LocationTracker = () => {
         accuracy: null,
         timestamp: null,
     });
+    const [journey, setJourney] = useState([]); // Journey points
     const [statusMessage, setStatusMessage] = useState("");
-    const [snappedLocation, setSnappedLocation] = useState({});
-    const [distanceMatrix, setDistanceMatrix] = useState({});
-    const [targetLocation, setTargetLocation] = useState({
-        latitude: 37.7749, // default to San Francisco
-        longitude: -122.4194,
-    });
 
-    const API_KEY = "AIzaSyBA9bzem6pdx8Ke_ubaEnp9WTu42SJCfhw"; // Replace with your actual API key
+    const API_KEY = "AIzaSyBA9bzem6pdx8Ke_ubaEnp9WTu42SJCfhw"; // Replace with your API key
 
-    // Memoize the Google Maps API loader to prevent it from being called multiple times
     const { isLoaded } = useJsApiLoader(
         useMemo(() => ({
             googleMapsApiKey: API_KEY,
             libraries: ["maps"],
             language: "en",
             region: "US",
-        }), [API_KEY]) // Ensure it only re-runs when API_KEY changes
+        }), [API_KEY])
     );
 
-    // Initialize WebViewJavascriptBridge
     const connectWebViewJavascriptBridge = (callback) => {
         if (window.WebViewJavascriptBridge) {
             callback(window.WebViewJavascriptBridge);
@@ -41,29 +34,30 @@ const LocationTracker = () => {
         }
     };
 
-    // Register handlers for receiving location updates
     const registerLocationCallback = (bridge) => {
         bridge.registerHandler("locationCallBack", (data, responseCallback) => {
+            const newPoint = {
+                lat: data.latitude,
+                lng: data.longitude,
+            };
             setCurrentLocation({
                 latitude: data.latitude,
                 longitude: data.longitude,
                 accuracy: data.accuracy,
                 timestamp: data.timestamp,
             });
-            fetchSnappedLocation(data.latitude, data.longitude);
-            fetchDistanceMatrix(data.latitude, data.longitude);
+            setJourney((prev) => [...prev, newPoint]); // Append to journey
             responseCallback("Location received successfully");
         });
     };
 
-    // Start and stop location listeners
     const startLocationListener = () => {
         if (window.WebViewJavascriptBridge) {
             window.WebViewJavascriptBridge.callHandler("startLocationListener", "", (responseData) => {
                 setStatusMessage("Location listener started successfully!");
             });
         } else {
-            setStatusMessage("WebViewJavascriptBridge not initialized.");
+            setStatusMessage("WebViewJavascriptBridge is not initialized.");
         }
     };
 
@@ -73,63 +67,31 @@ const LocationTracker = () => {
                 setStatusMessage("Location listener stopped.");
             });
         } else {
-            setStatusMessage("WebViewJavascriptBridge not initialized.");
+            setStatusMessage("WebViewJavascriptBridge is not initialized.");
         }
     };
 
-    // Fetch snapped location using Google Roads API
-    const fetchSnappedLocation = async (latitude, longitude) => {
-        try {
-            const response = await fetch(
-                `https://roads.googleapis.com/v1/snapToRoads?path=${latitude},${longitude}&interpolate=true&key=${API_KEY}`
-            );
-            const data = await response.json();
-            setSnappedLocation(data.snappedPoints ? data.snappedPoints[0].location : {});
-        } catch (error) {
-            console.error("Error fetching snapped location:", error);
-        }
-    };
-
-    // Fetch distance and duration using Google Distance Matrix API
-    const fetchDistanceMatrix = async (latitude, longitude) => {
-        try {
-            const response = await fetch(
-                `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${latitude},${longitude}&destinations=${targetLocation.latitude},${targetLocation.longitude}&key=${API_KEY}`
-            );
-            const data = await response.json();
-            setDistanceMatrix(data.rows[0].elements[0]);
-        } catch (error) {
-            console.error("Error fetching distance matrix:", error);
-        }
-    };
-
-    // Get last known location using the Geolocation API (for browsers that support it)
     const getLastLocation = () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const { latitude, longitude, accuracy } = position.coords;
-                    setCurrentLocation({
-                        latitude,
-                        longitude,
-                        accuracy,
-                        timestamp: position.timestamp,
-                    });
-                    setStatusMessage("Last known location fetched successfully!");
-                    fetchSnappedLocation(latitude, longitude);
-                    fetchDistanceMatrix(latitude, longitude);
-                },
-                (error) => {
-                    setStatusMessage(`Error fetching last location: ${error.message}`);
-                },
-                { enableHighAccuracy: true }
-            );
+        if (window.WebViewJavascriptBridge) {
+            window.WebViewJavascriptBridge.callHandler("getLastLocation", "", (responseData) => {
+                try {
+                    const locations = JSON.parse(responseData); // Parse JSON response
+                    const formattedJourney = locations.map((loc) => ({
+                        lat: loc.latitude,
+                        lng: loc.longitude,
+                    }));
+                    setJourney(formattedJourney); // Update journey state
+                    setStatusMessage("Journey retrieved successfully!");
+                } catch (error) {
+                    setStatusMessage("Error parsing journey data.");
+                    console.error("Error parsing response data:", error);
+                }
+            });
         } else {
-            setStatusMessage("Geolocation is not supported by this browser.");
+            setStatusMessage("WebViewJavascriptBridge is not initialized.");
         }
     };
 
-    // Initialize bridge and register callback on component mount
     useEffect(() => {
         connectWebViewJavascriptBridge((bridge) => {
             registerLocationCallback(bridge);
@@ -147,7 +109,7 @@ const LocationTracker = () => {
                     Stop Location Listener
                 </button>
                 <button style={styles.button} onClick={getLastLocation}>
-                    Get Last Known Location
+                    Get Last Journey
                 </button>
             </div>
             {statusMessage && <p style={styles.status}>{statusMessage}</p>}
@@ -161,8 +123,8 @@ const LocationTracker = () => {
             {isLoaded && (
                 <GoogleMap
                     center={{
-                        lat: currentLocation.latitude || targetLocation.latitude,
-                        lng: currentLocation.longitude || targetLocation.longitude,
+                        lat: currentLocation.latitude || 37.7749,
+                        lng: currentLocation.longitude || -122.4194,
                     }}
                     zoom={12}
                     mapContainerStyle={styles.mapContainer}
@@ -176,22 +138,16 @@ const LocationTracker = () => {
                             label="You"
                         />
                     )}
-                    {snappedLocation.latitude && (
-                        <Marker
-                            position={{
-                                lat: snappedLocation.latitude,
-                                lng: snappedLocation.longitude,
+                    {journey.length > 1 && (
+                        <Polyline
+                            path={journey}
+                            options={{
+                                strokeColor: "#FF0000",
+                                strokeOpacity: 0.8,
+                                strokeWeight: 2,
                             }}
-                            label="Snapped"
                         />
                     )}
-                    <Marker
-                        position={{
-                            lat: targetLocation.latitude,
-                            lng: targetLocation.longitude,
-                        }}
-                        label="Target"
-                    />
                 </GoogleMap>
             )}
         </div>
