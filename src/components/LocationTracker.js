@@ -62,29 +62,56 @@ const LocationTracker = () => {
         bridge.init((message, responseCallback) => {
           responseCallback("js success!");
         });
+
         bridge.registerHandler("locationCallBack", (data, responseCallback) => {
-          const parsedData = JSON.parse(data.data);
-          if (parsedData) {
-            const newPoint = {
-              lat: parsedData.latitude,
-              lng: parsedData.longitude,
-            };
-            setCurrentLocation({
-              latitude: parsedData.latitude,
-              longitude: parsedData.longitude,
-              accuracy: parsedData.accuracy,
-              timestamp: parsedData.timestamp,
-            });
-            setJourney((prev) => [...prev, newPoint]); // Append to journey
-            responseCallback("Location received successfully");
+          try {
+            // If `data.data` is a stringified JSON, parse it
+            const rawData =
+              typeof data.data === "string" ? JSON.parse(data.data) : data.data;
+
+            // Check if the parsed `rawData` contains valid fields
+            if (rawData && rawData.latitude && rawData.longitude) {
+              const newPoint = {
+                lat: rawData.latitude,
+                lng: rawData.longitude,
+              };
+
+              // Update the current location state
+              setCurrentLocation({
+                latitude: rawData.latitude,
+                longitude: rawData.longitude,
+                accuracy: rawData.accuracy || "Unknown",
+                timestamp: rawData.timestamp || "N/A",
+              });
+
+              // Append the new point to the journey
+              setJourney((prev) => [...prev, newPoint]);
+
+              console.log("Updated Current Location:", {
+                latitude: rawData.latitude,
+                longitude: rawData.longitude,
+                accuracy: rawData.accuracy,
+                timestamp: rawData.timestamp,
+              });
+
+              console.log("Updated Journey:", [...journey, newPoint]);
+              responseCallback("Location received successfully");
+            } else {
+              console.error("Invalid location data:", rawData);
+              responseCallback("Invalid location data received");
+            }
+          } catch (error) {
+            console.error("Error parsing data in locationCallBack:", error);
+            responseCallback("Error processing location data");
           }
         });
+
         setBridgeInitialized(true);
       }
     };
 
     connectWebViewJavascriptBridge(setupBridge);
-  }, [bridgeInitialized]);
+  }, []);
 
   const startLocationListener = () => {
     if (window.WebViewJavascriptBridge) {
