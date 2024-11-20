@@ -42,17 +42,17 @@ function App() {
       try {
         // Step 1: Parse the top-level response
         const parsedResponse = JSON.parse(response); 
-        console.log("Parsed Response:", parsedResponse);
+        console.info("Parsed Response:", parsedResponse);
   
         // Step 2: Parse the `responseData` field
         if (parsedResponse.responseData) {
           const responseData = JSON.parse(parsedResponse.responseData);
-          console.log("Parsed Response Data:", responseData);
+          console.info("Parsed Response Data:", responseData);
   
           // Step 3: Parse the `respData` field
           if (responseData.respData) {
             const locationData = JSON.parse(responseData.respData);
-            console.log("Parsed Location Data:", locationData);
+            console.info("Parsed Location Data:", locationData);
   
             // Step 4: Update the state with latitude and longitude
             if (locationData.latitude !== undefined && locationData.longitude !== undefined) {
@@ -72,7 +72,7 @@ function App() {
           setDebugMessage("`responseData` is missing or invalid.");
         }
       } catch (error) {
-        setDebugMessage("Error parsing response. Check the logs for details.");
+        setDebugMessage("Error parsing response. Check the infos for details.");
         console.error("Error parsing response:", error);
       }
     });
