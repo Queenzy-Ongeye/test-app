@@ -1,9 +1,12 @@
 import React, { useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
 
 function App() {
   const [locationData, setLocationData] = useState(null); // State to store location data
   const [debugMessage, setDebugMessage] = useState(""); // Debug message
+
+  // Your Google Maps API Key
+  const GOOGLE_MAPS_API_KEY = "AIzaSyBA9bzem6pdx8Ke_ubaEnp9WTu42SJCfhw";
 
   // Function to communicate with the WebView bridge
   const callWebViewJavascriptBridge = (handlerName, data, callback) => {
@@ -29,28 +32,27 @@ function App() {
   // Fetch Last Location
   const getLastLocation = () => {
     setDebugMessage("Fetching last known location...");
-    callWebViewJavascriptBridge("getLastLocation", "", (response) => {
-      try {
-        const parsedResponse = JSON.parse(response); // Parse the first layer
-        console.log("Parsed Response:", parsedResponse); // Debugging response
-
-        if (parsedResponse) {
-          console.log("Setting Location Data:", parsedResponse);
-            setLocationData(parsedResponse); // Set the relevant location data
-            setDebugMessage("Location data fetched success")
-        } else {
-          setDebugMessage("Invalid responseData format.");
-        }
-      } catch (error) {
-        setDebugMessage("Error parsing response. Check the logs for details.");
-        console.error("Error parsing response:", error);
+    const callWebViewJavascriptBridge = (handlerName, data, callback) => {
+      if (window.WebViewJavascriptBridge) {
+        window.WebViewJavascriptBridge.callHandler(handlerName, data, (response) => {
+          try {
+            const parsedResponse = JSON.parse(response);
+            callback(null, parsedResponse);
+          } catch (error) {
+            callback(error, null);
+          }
+        });
+      } else {
+        console.error("WebViewJavascriptBridge is not initialized.");
+        callback(new Error("WebViewJavascriptBridge is not initialized."), null);
       }
-    });
+    };
+    
   };
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Location Listener with Map</h1>
+      <h1 style={styles.title}>Location Listener with Google Maps</h1>
       <div style={styles.buttonContainer}>
         <button style={styles.button} onClick={startLocationListener}>
           Start Location Listener
@@ -63,24 +65,26 @@ function App() {
       {/* Debug Message */}
       {debugMessage && <p style={styles.debugMessage}>{debugMessage}</p>}
 
-      {/* Map Section */}
+      {/* Google Maps Section */}
       {locationData && locationData.latitude && locationData.longitude ? (
         <div style={styles.mapContainer}>
-          <MapContainer
-            center={[locationData.latitude, locationData.longitude]}
-            zoom={15}
-            style={{ height: "400px", width: "100%" }}
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            />
-            <Marker position={[locationData.latitude, locationData.longitude]}>
-              <Popup>
-                Latitude: {locationData.latitude}, Longitude: {locationData.longitude}
-              </Popup>
-            </Marker>
-          </MapContainer>
+          <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
+            <GoogleMap
+              mapContainerStyle={{ height: "400px", width: "100%" }}
+              center={{
+                lat: parseFloat(locationData.latitude),
+                lng: parseFloat(locationData.longitude),
+              }}
+              zoom={15}
+            >
+              <Marker
+                position={{
+                  lat: parseFloat(locationData.latitude),
+                  lng: parseFloat(locationData.longitude),
+                }}
+              />
+            </GoogleMap>
+          </LoadScript>
         </div>
       ) : (
         <p style={styles.noLocationMessage}>No location data available to display on the map.</p>
