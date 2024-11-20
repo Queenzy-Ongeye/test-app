@@ -3,46 +3,58 @@ import React, { useState } from 'react';
 function App() {
   const [locationData, setLocationData] = useState(null); // State to store location data
   const [rawResponse, setRawResponse] = useState(null); // State to store raw response for debugging
+  const [debugMessage, setDebugMessage] = useState(''); // State to store debug messages
 
   // Function to communicate with the WebView bridge
-  const callWebViewJavascriptBridge = (handlerName, data) => {
+  const callWebViewJavascriptBridge = (handlerName, data, callback) => {
     if (window.WebViewJavascriptBridge) {
       window.WebViewJavascriptBridge.callHandler(handlerName, data, (response) => {
         console.log(`${handlerName} response:`, response);
-
-        if (handlerName === 'getLastLocation') {
-          setRawResponse(response); // Save raw response for debugging
-          try {
-            const parsedResponse = JSON.parse(response); // Parse the first layer
-            if (parsedResponse.responseData) {
-              const nestedData = JSON.parse(parsedResponse.responseData); // Parse the nested responseData
-              setLocationData(nestedData.respData); // Set the relevant location data
-            } else {
-              console.error('Invalid responseData format:', response);
-            }
-          } catch (error) {
-            console.error('Error parsing response:', error);
-          }
-        } else {
-          alert(`${handlerName} executed successfully.`);
-        }
+        if (callback) callback(response);
       });
     } else {
       console.warn('WebViewJavascriptBridge is not available.');
+      setDebugMessage('WebViewJavascriptBridge is not available.');
     }
   };
 
-  // Location functions
+  // Start Location Listener
   const startLocationListener = () => {
-    callWebViewJavascriptBridge('startLocationListener', '');
+    setDebugMessage('Starting location listener...');
+    callWebViewJavascriptBridge('startLocationListener', '', (response) => {
+      setDebugMessage('Location listener started. You can now fetch the last location.');
+    });
   };
 
+  // Stop Location Listener
   const stopLocationListener = () => {
-    callWebViewJavascriptBridge('stopLocationListener', '');
+    setDebugMessage('Stopping location listener...');
+    callWebViewJavascriptBridge('stopLocationListener', '', (response) => {
+      setDebugMessage('Location listener stopped.');
+    });
   };
 
+  // Fetch Last Location (with a delay)
   const getLastLocation = () => {
-    callWebViewJavascriptBridge('getLastLocation', '');
+    setDebugMessage('Fetching last known location...');
+    setTimeout(() => {
+      callWebViewJavascriptBridge('getLastLocation', '', (response) => {
+        setRawResponse(response); // Save raw response for debugging
+        try {
+          const parsedResponse = JSON.parse(response); // Parse the first layer
+          if (parsedResponse.responseData) {
+            const nestedData = JSON.parse(parsedResponse.responseData); // Parse the nested responseData
+            setLocationData(nestedData.respData); // Set the relevant location data
+            setDebugMessage('Location data fetched successfully.');
+          } else {
+            setDebugMessage('Invalid responseData format.');
+          }
+        } catch (error) {
+          setDebugMessage('Error parsing response. Check raw response for details.');
+          console.error('Error parsing response:', error);
+        }
+      });
+    }, 2000); // Adding a 2-second delay
   };
 
   return (
@@ -60,6 +72,9 @@ function App() {
         </button>
       </div>
 
+      {/* Debug Message */}
+      {debugMessage && <p style={styles.debugMessage}>{debugMessage}</p>}
+
       {/* Displaying raw response for debugging */}
       {rawResponse && (
         <div style={styles.card}>
@@ -74,10 +89,10 @@ function App() {
           <h2 style={styles.cardTitle}>Location Data</h2>
           <div style={styles.locationData}>
             <p style={styles.dataField}>
-              <strong>Latitude:</strong> {locationData.latitude}
+              <strong>Latitude:</strong> {locationData.latitude || 'N/A'}
             </p>
             <p style={styles.dataField}>
-              <strong>Longitude:</strong> {locationData.longitude}
+              <strong>Longitude:</strong> {locationData.longitude || 'N/A'}
             </p>
           </div>
         </div>
@@ -128,9 +143,11 @@ const styles = {
     boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.3)',
     transition: 'transform 0.2s, box-shadow 0.2s',
   },
-  buttonHover: {
-    transform: 'scale(1.05)',
-    boxShadow: '0px 6px 8px rgba(0, 0, 0, 0.4)',
+  debugMessage: {
+    color: '#FFD700',
+    marginTop: '10px',
+    fontSize: '1rem',
+    textAlign: 'center',
   },
   card: {
     width: '90%',
