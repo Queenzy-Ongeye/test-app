@@ -1,44 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { MapPin, Car } from 'lucide-react';
 
-// Define interfaces for type safety
-interface Location {
-  latitude: number | null;
-  longitude: number | null;
-  accuracy: string | null;
-  timestamp: string | null;
-}
-
-interface JourneyPoint {
-  x: number;
-  y: number;
-  name: string;
-}
-
-// Extend Window interface to include WebViewJavascriptBridge
-declare global {
-  interface Window {
-    WebViewJavascriptBridge?: {
-      registerHandler: (event: string, callback: (data: any, responseCallback: (response: string) => void) => void) => void;
-      callHandler: (event: string, data: string, callback: (responseData: string) => void) => void;
-    };
-  }
-}
-
-const LocationTracker: React.FC = () => {
-  const [currentLocation, setCurrentLocation] = useState<Location>({
+const LocationTracker = () => {
+  const [currentLocation, setCurrentLocation] = useState({
     latitude: null,
     longitude: null,
     accuracy: null,
     timestamp: null,
   });
-
-  const [journey, setJourney] = useState<JourneyPoint[]>([]);
-  const [statusMessage, setStatusMessage] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [journey, setJourney] = useState([]);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Connect to WebViewJavascriptBridge
-  const connectWebViewJavascriptBridge = (callback: (bridge: any) => void) => {
+  const connectWebViewJavascriptBridge = (callback) => {
     if (window.WebViewJavascriptBridge) {
       callback(window.WebViewJavascriptBridge);
     } else {
@@ -51,30 +26,25 @@ const LocationTracker: React.FC = () => {
   };
 
   // Register location callback
-  const registerLocationCallback = (bridge: any) => {
-    bridge.registerHandler('locationCallBack', (data: { data: string }, responseCallback: (response: string) => void) => {
-      try {
-        const parsedData = JSON.parse(data.data || '{}');
-        if (parsedData.latitude && parsedData.longitude) {
-          const newPoint: JourneyPoint = {
-            x: (parsedData.longitude + 180) / 360 * 100,
-            y: (90 - parsedData.latitude) / 180 * 100,
-            name: 'Current Location'
-          };
-          
-          setCurrentLocation({
-            latitude: parsedData.latitude,
-            longitude: parsedData.longitude,
-            accuracy: parsedData.accuracy || 'Unknown',
-            timestamp: parsedData.timestamp || 'N/A',
-          });
-          
-          setJourney((prev) => [...prev, newPoint]);
-          responseCallback('Location received successfully');
-        }
-      } catch (error) {
-        console.error('Error processing location data', error);
-        responseCallback('Error processing location');
+  const registerLocationCallback = (bridge) => {
+    bridge.registerHandler('locationCallBack', (data, responseCallback) => {
+      const parsedData = JSON.parse(data.data || '{}');
+      if (parsedData.latitude && parsedData.longitude) {
+        const newPoint = {
+          x: (parsedData.longitude + 180) / 360 * 100, // Convert to percentage
+          y: (90 - parsedData.latitude) / 180 * 100, // Convert to percentage
+          name: 'Current Location'
+        };
+        
+        setCurrentLocation({
+          latitude: parsedData.latitude,
+          longitude: parsedData.longitude,
+          accuracy: parsedData.accuracy || 'Unknown',
+          timestamp: parsedData.timestamp || 'N/A',
+        });
+        
+        setJourney((prev) => [...prev, newPoint]);
+        responseCallback('Location received successfully');
       }
     });
   };
@@ -108,8 +78,8 @@ const LocationTracker: React.FC = () => {
       window.WebViewJavascriptBridge.callHandler('getLastLocation', '', (responseData) => {
         setIsLoading(false);
         try {
-          const locations: Array<{latitude: number, longitude: number}> = JSON.parse(responseData);
-          const formattedJourney: JourneyPoint[] = locations.map((loc) => ({
+          const locations = JSON.parse(responseData);
+          const formattedJourney = locations.map((loc) => ({
             x: (loc.longitude + 180) / 360 * 100,
             y: (90 - loc.latitude) / 180 * 100,
             name: 'Saved Location'
@@ -226,10 +196,10 @@ const LocationTracker: React.FC = () => {
       <div className="absolute bottom-4 left-4 bg-white p-4 rounded-lg shadow-md z-50 w-64">
         <div className="font-bold text-lg mb-2">Current Location</div>
         <div className="text-sm">
-          <p><strong>Latitude:</strong> {currentLocation.latitude ?? 'N/A'}</p>
-          <p><strong>Longitude:</strong> {currentLocation.longitude ?? 'N/A'}</p>
-          <p><strong>Accuracy:</strong> {currentLocation.accuracy ?? 'N/A'} meters</p>
-          <p><strong>Timestamp:</strong> {currentLocation.timestamp ?? 'N/A'}</p>
+          <p><strong>Latitude:</strong> {currentLocation.latitude || 'N/A'}</p>
+          <p><strong>Longitude:</strong> {currentLocation.longitude || 'N/A'}</p>
+          <p><strong>Accuracy:</strong> {currentLocation.accuracy || 'N/A'} meters</p>
+          <p><strong>Timestamp:</strong> {currentLocation.timestamp || 'N/A'}</p>
         </div>
         {statusMessage && (
           <div className="mt-2 text-blue-600 italic">
