@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Car, Navigation, Pause, Play } from 'lucide-react';
+import { MapPin, Car, Navigation, Pause, Play, CircleUserRound, MapPinned, Bike } from 'lucide-react';
 
 const EnhancedLocationTracker = () => {
   const [currentLocation, setCurrentLocation] = useState({
@@ -12,8 +12,9 @@ const EnhancedLocationTracker = () => {
   const [statusMessage, setStatusMessage] = useState('');
   const [isTracking, setIsTracking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [movementType, setMovementType] = useState(null);
 
-  // Connect to WebViewJavascriptBridge
+  // Existing bridge connection methods from previous implementation
   const connectWebViewJavascriptBridge = (callback) => {
     if (window.WebViewJavascriptBridge) {
       callback(window.WebViewJavascriptBridge);
@@ -26,7 +27,6 @@ const EnhancedLocationTracker = () => {
     }
   };
 
-  // Register location callback
   const registerLocationCallback = (bridge) => {
     bridge.registerHandler('locationCallBack', (data, responseCallback) => {
       const parsedData = JSON.parse(data.data || '{}');
@@ -50,31 +50,30 @@ const EnhancedLocationTracker = () => {
     });
   };
 
-  // Start location listener
-  const startLocationListener = () => {
+  const startLocationListener = (type) => {
     if (window.WebViewJavascriptBridge) {
       window.WebViewJavascriptBridge.callHandler('startLocationListener', '', (responseData) => {
-        setStatusMessage('Location listener started successfully!');
+        setStatusMessage(`${type} tracking started successfully!`);
         setIsTracking(true);
+        setMovementType(type);
       });
     } else {
       setStatusMessage('WebViewJavascriptBridge is not initialized.');
     }
   };
 
-  // Stop location listener
   const stopLocationListener = () => {
     if (window.WebViewJavascriptBridge) {
       window.WebViewJavascriptBridge.callHandler('stopLocationListener', '', (responseData) => {
-        setStatusMessage('Location listener stopped.');
+        setStatusMessage('Location tracking stopped.');
         setIsTracking(false);
+        setMovementType(null);
       });
     } else {
       setStatusMessage('WebViewJavascriptBridge is not initialized.');
     }
   };
 
-  // Get last location
   const getLastLocation = () => {
     if (window.WebViewJavascriptBridge) {
       setIsLoading(true);
@@ -99,7 +98,6 @@ const EnhancedLocationTracker = () => {
     }
   };
 
-  // Initialize bridge on component mount
   useEffect(() => {
     connectWebViewJavascriptBridge((bridge) => {
       registerLocationCallback(bridge);
@@ -118,8 +116,16 @@ const EnhancedLocationTracker = () => {
         {/* Location Details Card */}
         <div className="bg-blue-50 rounded-lg p-4 mb-6 shadow-sm">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="font-semibold text-gray-700">Current Location</h2>
-            <Car className={`${currentLocation.latitude ? 'text-green-500' : 'text-gray-400'}`} size={24} />
+            <h2 className="font-semibold text-gray-700">
+              {movementType ? `${movementType} Tracking` : 'Current Location'}
+            </h2>
+            {movementType === 'Bike' ? (
+              <Bike className="text-green-500" size={24} />
+            ) : movementType === 'Person' ? (
+              <CircleUserRound className="text-green-500" size={24} />
+            ) : (
+              <Car className={`${currentLocation.latitude ? 'text-green-500' : 'text-gray-400'}`} size={24} />
+            )}
           </div>
           <div className="space-y-2 text-sm">
             <p>
@@ -141,18 +147,27 @@ const EnhancedLocationTracker = () => {
           </div>
         </div>
 
-        {/* Control Buttons */}
+        {/* Movement Type Selection */}
         <div className="space-y-4">
-          <button 
-            onClick={startLocationListener}
-            className="w-full flex items-center justify-center py-3 rounded-lg bg-green-500 text-white hover:bg-green-600"
-          >
-            <Play className="mr-2" size={20} /> Start Tracking
-          </button>
-          
+          <div className="flex justify-between gap-2">
+            <button 
+              onClick={() => startLocationListener('Person')}
+              className="flex-1 flex items-center justify-center py-3 rounded-lg bg-green-500 text-white hover:bg-green-600"
+            >
+              <CircleUserRound className="mr-2" size={20} /> Person
+            </button>
+            <button 
+              onClick={() => startLocationListener('Bike')}
+              className="flex-1 flex items-center justify-center py-3 rounded-lg bg-blue-500 text-white hover:bg-blue-600"
+            >
+              <Bike className="mr-2" size={20} /> Bike
+            </button>
+          </div>
+
           <button 
             onClick={stopLocationListener}
-            className="w-full flex items-center justify-center py-3 rounded-lg bg-red-500 text-white hover:bg-red-600"
+            disabled={!isTracking}
+            className="w-full flex items-center justify-center py-3 rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
           >
             <Pause className="mr-2" size={20} /> Stop Tracking
           </button>
@@ -160,9 +175,9 @@ const EnhancedLocationTracker = () => {
           <button 
             onClick={getLastLocation}
             disabled={isLoading}
-            className="w-full flex items-center justify-center py-3 rounded-lg bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
+            className="w-full flex items-center justify-center py-3 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-50"
           >
-            <MapPin className="mr-2" size={20} /> 
+            <MapPinned className="mr-2" size={20} /> 
             {isLoading ? 'Loading...' : 'Retrieve Journey'}
           </button>
         </div>
@@ -230,6 +245,17 @@ const EnhancedLocationTracker = () => {
               </span>
             </div>
           </>
+        )}
+
+        {/* Movement Type Overlay */}
+        {isTracking && movementType && (
+          <div className="absolute top-4 right-4 z-50 bg-white rounded-full p-3 shadow-lg">
+            {movementType === 'Bike' ? (
+              <Bike className="text-blue-500" size={32} />
+            ) : (
+              <CircleUserRound className="text-green-500" size={32} />
+            )}
+          </div>
         )}
       </div>
     </div>
