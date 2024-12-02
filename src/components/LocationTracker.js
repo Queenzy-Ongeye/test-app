@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Car } from 'lucide-react';
+import { MapPin, Car, Navigation, Pause, Play } from 'lucide-react';
 
-const LocationTracker = () => {
+const EnhancedLocationTracker = () => {
   const [currentLocation, setCurrentLocation] = useState({
     latitude: null,
     longitude: null,
@@ -10,6 +10,7 @@ const LocationTracker = () => {
   });
   const [journey, setJourney] = useState([]);
   const [statusMessage, setStatusMessage] = useState('');
+  const [isTracking, setIsTracking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Connect to WebViewJavascriptBridge
@@ -31,8 +32,8 @@ const LocationTracker = () => {
       const parsedData = JSON.parse(data.data || '{}');
       if (parsedData.latitude && parsedData.longitude) {
         const newPoint = {
-          x: (parsedData.longitude + 180) / 360 * 100, // Convert to percentage
-          y: (90 - parsedData.latitude) / 180 * 100, // Convert to percentage
+          x: (parsedData.longitude + 180) / 360 * 100,
+          y: (90 - parsedData.latitude) / 180 * 100,
           name: 'Current Location'
         };
         
@@ -54,6 +55,7 @@ const LocationTracker = () => {
     if (window.WebViewJavascriptBridge) {
       window.WebViewJavascriptBridge.callHandler('startLocationListener', '', (responseData) => {
         setStatusMessage('Location listener started successfully!');
+        setIsTracking(true);
       });
     } else {
       setStatusMessage('WebViewJavascriptBridge is not initialized.');
@@ -65,6 +67,7 @@ const LocationTracker = () => {
     if (window.WebViewJavascriptBridge) {
       window.WebViewJavascriptBridge.callHandler('stopLocationListener', '', (responseData) => {
         setStatusMessage('Location listener stopped.');
+        setIsTracking(false);
       });
     } else {
       setStatusMessage('WebViewJavascriptBridge is not initialized.');
@@ -103,112 +106,134 @@ const LocationTracker = () => {
     });
   }, []);
 
-  // First point (if journey exists)
-  const startPoint = journey.length > 0 ? journey[0] : null;
-  // Last point (if journey exists)
-  const endPoint = journey.length > 0 ? journey[journey.length - 1] : null;
-
   return (
-    <div className="w-full h-screen relative bg-gray-100">
-      {/* Map Background */}
-      <div 
-        className="absolute inset-0 bg-gray-200 opacity-50"
-        style={{
-          backgroundImage: 'linear-gradient(to right, rgba(200,200,200,0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(200,200,200,0.2) 1px, transparent 1px)',
-          backgroundSize: '20px 20px'
-        }}
-      />
+    <div className="flex h-screen bg-gray-50">
+      {/* Sidebar */}
+      <div className="w-80 bg-white shadow-lg p-6 flex flex-col">
+        <h1 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+          <Navigation className="mr-3 text-blue-600" size={28} />
+          Location Tracker
+        </h1>
 
-      {/* Route Line */}
-      {journey.length > 1 && (
-        <svg className="absolute inset-0 z-20" viewBox="0 0 100 100">
-          <polyline 
-            points={journey.map(point => `${point.x},${point.y}`).join(' ')}
-            fill="none"
-            stroke="#1E88E5" 
-            strokeWidth="0.5" 
-            strokeDasharray="1"
-          />
-        </svg>
-      )}
-
-      {/* Start Point */}
-      {startPoint && (
-        <div 
-          className="absolute flex items-center z-30"
-          style={{
-            left: `${startPoint.x}%`, 
-            top: `${startPoint.y}%`
-          }}
-        >
-          <MapPin 
-            className="text-green-500" 
-            size={24}
-          />
-          <span className="ml-2 bg-white p-1 rounded shadow text-xs">
-            Start
-          </span>
+        {/* Location Details Card */}
+        <div className="bg-blue-50 rounded-lg p-4 mb-6 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-semibold text-gray-700">Current Location</h2>
+            <Car className={`${currentLocation.latitude ? 'text-green-500' : 'text-gray-400'}`} size={24} />
+          </div>
+          <div className="space-y-2 text-sm">
+            <p>
+              <span className="font-medium text-gray-600">Latitude:</span>{' '}
+              {currentLocation.latitude || 'Waiting for location'}
+            </p>
+            <p>
+              <span className="font-medium text-gray-600">Longitude:</span>{' '}
+              {currentLocation.longitude || 'Waiting for location'}
+            </p>
+            <p>
+              <span className="font-medium text-gray-600">Accuracy:</span>{' '}
+              {currentLocation.accuracy ? `${currentLocation.accuracy} meters` : 'N/A'}
+            </p>
+            <p>
+              <span className="font-medium text-gray-600">Timestamp:</span>{' '}
+              {currentLocation.timestamp || 'No recent update'}
+            </p>
+          </div>
         </div>
-      )}
 
-      {/* End Point */}
-      {endPoint && (
-        <div 
-          className="absolute flex items-center z-30"
-          style={{
-            left: `${endPoint.x}%`, 
-            top: `${endPoint.y}%`
-          }}
-        >
-          <MapPin 
-            className="text-red-500" 
-            size={24}
-          />
-          <span className="ml-2 bg-white p-1 rounded shadow text-xs">
-            End
-          </span>
+        {/* Control Buttons */}
+        <div className="space-y-4">
+          <button 
+            onClick={startLocationListener}
+            className="w-full flex items-center justify-center py-3 rounded-lg bg-green-500 text-white hover:bg-green-600"
+          >
+            <Play className="mr-2" size={20} /> Start Tracking
+          </button>
+          
+          <button 
+            onClick={stopLocationListener}
+            className="w-full flex items-center justify-center py-3 rounded-lg bg-red-500 text-white hover:bg-red-600"
+          >
+            <Pause className="mr-2" size={20} /> Stop Tracking
+          </button>
+
+          <button 
+            onClick={getLastLocation}
+            disabled={isLoading}
+            className="w-full flex items-center justify-center py-3 rounded-lg bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
+          >
+            <MapPin className="mr-2" size={20} /> 
+            {isLoading ? 'Loading...' : 'Retrieve Journey'}
+          </button>
         </div>
-      )}
 
-      {/* Control Buttons */}
-      <div className="absolute top-4 left-4 z-50 flex gap-2">
-        <button 
-          className="bg-green-500 text-white px-4 py-2 rounded"
-          onClick={startLocationListener}
-        >
-          Start Tracking
-        </button>
-        <button 
-          className="bg-red-500 text-white px-4 py-2 rounded"
-          onClick={stopLocationListener}
-        >
-          Stop Tracking
-        </button>
-        <button 
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-          onClick={getLastLocation}
-        >
-          Get Journey
-        </button>
-      </div>
-
-      {/* Location Information */}
-      <div className="absolute bottom-4 left-4 bg-white p-4 rounded-lg shadow-md z-50 w-64">
-        <div className="font-bold text-lg mb-2">Current Location</div>
-        <div className="text-sm">
-          <p><strong>Latitude:</strong> {currentLocation.latitude || 'N/A'}</p>
-          <p><strong>Longitude:</strong> {currentLocation.longitude || 'N/A'}</p>
-          <p><strong>Accuracy:</strong> {currentLocation.accuracy || 'N/A'} meters</p>
-          <p><strong>Timestamp:</strong> {currentLocation.timestamp || 'N/A'}</p>
-        </div>
+        {/* Status Message */}
         {statusMessage && (
-          <div className="mt-2 text-blue-600 italic">
+          <div className="mt-4 text-center bg-blue-100 text-blue-700 p-2 rounded-lg text-sm">
             {statusMessage}
           </div>
+        )}
+      </div>
+
+      {/* Map Visualization */}
+      <div className="flex-1 relative bg-gray-200">
+        {/* Map Background Grid */}
+        <div 
+          className="absolute inset-0 opacity-50"
+          style={{
+            backgroundImage: 'linear-gradient(to right, rgba(200,200,200,0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(200,200,200,0.2) 1px, transparent 1px)',
+            backgroundSize: '20px 20px'
+          }}
+        />
+
+        {/* Route Line */}
+        {journey.length > 1 && (
+          <svg className="absolute inset-0 z-20" viewBox="0 0 100 100">
+            <polyline 
+              points={journey.map(point => `${point.x},${point.y}`).join(' ')}
+              fill="none"
+              stroke="#1E88E5" 
+              strokeWidth="0.5" 
+              strokeDasharray="1"
+            />
+          </svg>
+        )}
+
+        {/* Start and End Points */}
+        {journey.length > 0 && (
+          <>
+            {/* Start Point */}
+            <div 
+              className="absolute z-30 transform -translate-x-1/2 -translate-y-1/2"
+              style={{
+                left: `${journey[0].x}%`, 
+                top: `${journey[0].y}%`
+              }}
+            >
+              <MapPin className="text-green-500" size={32} />
+              <span className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 bg-white px-2 py-1 rounded shadow text-xs">
+                Start
+              </span>
+            </div>
+
+            {/* End Point */}
+            <div 
+              className="absolute z-30 transform -translate-x-1/2 -translate-y-1/2"
+              style={{
+                left: `${journey[journey.length - 1].x}%`, 
+                top: `${journey[journey.length - 1].y}%`
+              }}
+            >
+              <MapPin className="text-red-500" size={32} />
+              <span className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 bg-white px-2 py-1 rounded shadow text-xs">
+                End
+              </span>
+            </div>
+          </>
         )}
       </div>
     </div>
   );
 };
 
-export default LocationTracker;
+export default EnhancedLocationTracker;
