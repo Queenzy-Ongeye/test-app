@@ -1,216 +1,244 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { GoogleMap, Marker, Polyline, useJsApiLoader } from "@react-google-maps/api";
+import React, { useEffect, useState } from 'react';
+import { MapPin, Car } from 'lucide-react';
 
-const LocationTracker = () => {
-    const [currentLocation, setCurrentLocation] = useState({
-        latitude: null,
-        longitude: null,
-        accuracy: null,
-        timestamp: null,
+// Define interfaces for type safety
+interface Location {
+  latitude: number | null;
+  longitude: number | null;
+  accuracy: string | null;
+  timestamp: string | null;
+}
+
+interface JourneyPoint {
+  x: number;
+  y: number;
+  name: string;
+}
+
+// Extend Window interface to include WebViewJavascriptBridge
+declare global {
+  interface Window {
+    WebViewJavascriptBridge?: {
+      registerHandler: (event: string, callback: (data: any, responseCallback: (response: string) => void) => void) => void;
+      callHandler: (event: string, data: string, callback: (responseData: string) => void) => void;
+    };
+  }
+}
+
+const LocationTracker: React.FC = () => {
+  const [currentLocation, setCurrentLocation] = useState<Location>({
+    latitude: null,
+    longitude: null,
+    accuracy: null,
+    timestamp: null,
+  });
+
+  const [journey, setJourney] = useState<JourneyPoint[]>([]);
+  const [statusMessage, setStatusMessage] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Connect to WebViewJavascriptBridge
+  const connectWebViewJavascriptBridge = (callback: (bridge: any) => void) => {
+    if (window.WebViewJavascriptBridge) {
+      callback(window.WebViewJavascriptBridge);
+    } else {
+      document.addEventListener(
+        'WebViewJavascriptBridgeReady',
+        () => callback(window.WebViewJavascriptBridge),
+        false
+      );
+    }
+  };
+
+  // Register location callback
+  const registerLocationCallback = (bridge: any) => {
+    bridge.registerHandler('locationCallBack', (data: { data: string }, responseCallback: (response: string) => void) => {
+      try {
+        const parsedData = JSON.parse(data.data || '{}');
+        if (parsedData.latitude && parsedData.longitude) {
+          const newPoint: JourneyPoint = {
+            x: (parsedData.longitude + 180) / 360 * 100,
+            y: (90 - parsedData.latitude) / 180 * 100,
+            name: 'Current Location'
+          };
+          
+          setCurrentLocation({
+            latitude: parsedData.latitude,
+            longitude: parsedData.longitude,
+            accuracy: parsedData.accuracy || 'Unknown',
+            timestamp: parsedData.timestamp || 'N/A',
+          });
+          
+          setJourney((prev) => [...prev, newPoint]);
+          responseCallback('Location received successfully');
+        }
+      } catch (error) {
+        console.error('Error processing location data', error);
+        responseCallback('Error processing location');
+      }
     });
-    const [journey, setJourney] = useState([]); // Journey points
-    const [statusMessage, setStatusMessage] = useState("");
-    const [isLoading, setIsLoading] = useState(false); // Loading state
+  };
 
-    const API_KEY = "AIzaSyBA9bzem6pdx8Ke_ubaEnp9WTu42SJCfhw"; // Replace with your API key
+  // Start location listener
+  const startLocationListener = () => {
+    if (window.WebViewJavascriptBridge) {
+      window.WebViewJavascriptBridge.callHandler('startLocationListener', '', (responseData) => {
+        setStatusMessage('Location listener started successfully!');
+      });
+    } else {
+      setStatusMessage('WebViewJavascriptBridge is not initialized.');
+    }
+  };
 
-    const { isLoaded } = useJsApiLoader(
-        useMemo(() => ({
-            googleMapsApiKey: API_KEY,
-            libraries: ["maps"],
-            language: "en",
-            region: "KE",
-        }), [API_KEY])
-    );
+  // Stop location listener
+  const stopLocationListener = () => {
+    if (window.WebViewJavascriptBridge) {
+      window.WebViewJavascriptBridge.callHandler('stopLocationListener', '', (responseData) => {
+        setStatusMessage('Location listener stopped.');
+      });
+    } else {
+      setStatusMessage('WebViewJavascriptBridge is not initialized.');
+    }
+  };
 
-    const connectWebViewJavascriptBridge = (callback) => {
-        if (window.WebViewJavascriptBridge) {
-            callback(window.WebViewJavascriptBridge);
-        } else {
-            document.addEventListener(
-                "WebViewJavascriptBridgeReady",
-                () => callback(window.WebViewJavascriptBridge),
-                false
-            );
+  // Get last location
+  const getLastLocation = () => {
+    if (window.WebViewJavascriptBridge) {
+      setIsLoading(true);
+      window.WebViewJavascriptBridge.callHandler('getLastLocation', '', (responseData) => {
+        setIsLoading(false);
+        try {
+          const locations: Array<{latitude: number, longitude: number}> = JSON.parse(responseData);
+          const formattedJourney: JourneyPoint[] = locations.map((loc) => ({
+            x: (loc.longitude + 180) / 360 * 100,
+            y: (90 - loc.latitude) / 180 * 100,
+            name: 'Saved Location'
+          }));
+          setJourney(formattedJourney);
+          setStatusMessage('Journey retrieved successfully!');
+        } catch (error) {
+          setStatusMessage('Error parsing journey data.');
+          console.error('Error parsing response data:', error);
         }
-    };
+      });
+    } else {
+      setStatusMessage('WebViewJavascriptBridge is not initialized.');
+    }
+  };
 
-    const registerLocationCallback = (bridge) => {
-        bridge.registerHandler("locationCallBack", (data, responseCallback) => {
-            const parsedData = JSON.parse(data.data || '{}');
-            if (parsedData.latitude && parsedData.longitude) {
-                const newPoint = {
-                    lat: parsedData.latitude,
-                    lng: parsedData.longitude,
-                };
-                setCurrentLocation({
-                    latitude: parsedData.latitude,
-                    longitude: parsedData.longitude,
-                    accuracy: parsedData.accuracy || "Unknown",
-                    timestamp: parsedData.timestamp || "N/A",
-                });
-                setJourney((prev) => [...prev, newPoint]); // Append to journey
-                responseCallback("Location received successfully");
-            }
-        });
-    };
+  // Initialize bridge on component mount
+  useEffect(() => {
+    connectWebViewJavascriptBridge((bridge) => {
+      registerLocationCallback(bridge);
+    });
+  }, []);
 
-    const startLocationListener = () => {
-        if (window.WebViewJavascriptBridge) {
-            window.WebViewJavascriptBridge.callHandler("startLocationListener", "", (responseData) => {
-                setStatusMessage("Location listener started successfully!");
-            });
-        } else {
-            setStatusMessage("WebViewJavascriptBridge is not initialized.");
-        }
-    };
+  // First point (if journey exists)
+  const startPoint = journey.length > 0 ? journey[0] : null;
+  // Last point (if journey exists)
+  const endPoint = journey.length > 0 ? journey[journey.length - 1] : null;
 
-    const stopLocationListener = () => {
-        if (window.WebViewJavascriptBridge) {
-            window.WebViewJavascriptBridge.callHandler("stopLocationListener", "", (responseData) => {
-                setStatusMessage("Location listener stopped.");
-            });
-        } else {
-            setStatusMessage("WebViewJavascriptBridge is not initialized.");
-        }
-    };
+  return (
+    <div className="w-full h-screen relative bg-gray-100">
+      {/* Map Background */}
+      <div 
+        className="absolute inset-0 bg-gray-200 opacity-50"
+        style={{
+          backgroundImage: 'linear-gradient(to right, rgba(200,200,200,0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(200,200,200,0.2) 1px, transparent 1px)',
+          backgroundSize: '20px 20px'
+        }}
+      />
 
-    const getLastLocation = () => {
-        if (window.WebViewJavascriptBridge) {
-            setIsLoading(true); // Set loading state to true
-            window.WebViewJavascriptBridge.callHandler("getLastLocation", "", (responseData) => {
-                setIsLoading(false); // Set loading state to false
-                try {
-                    const locations = JSON.parse(responseData); // Parse JSON response
-                    const formattedJourney = locations.map((loc) => ({
-                        lat: loc.latitude,
-                        lng: loc.longitude,
-                    }));
-                    setJourney(formattedJourney); // Update journey state
-                    setStatusMessage("Journey retrieved successfully!");
-                } catch (error) {
-                    setStatusMessage("Error parsing journey data.");
-                    console.error("Error parsing response data:", error);
-                }
-            });
-        } else {
-            setStatusMessage("WebViewJavascriptBridge is not initialized.");
-        }
-    };
+      {/* Route Line */}
+      {journey.length > 1 && (
+        <svg className="absolute inset-0 z-20" viewBox="0 0 100 100">
+          <polyline 
+            points={journey.map(point => `${point.x},${point.y}`).join(' ')}
+            fill="none"
+            stroke="#1E88E5" 
+            strokeWidth="0.5" 
+            strokeDasharray="1"
+          />
+        </svg>
+      )}
 
-    useEffect(() => {
-        connectWebViewJavascriptBridge((bridge) => {
-            registerLocationCallback(bridge);
-        });
-    }, []);
-
-    return (
-        <div style={styles.container}>
-            <h1 style={styles.title}>Location Tracker</h1>
-            <div style={styles.buttonContainer}>
-                <button style={styles.button} onClick={startLocationListener}>
-                    Start Location Listener
-                </button>
-                <button style={styles.button} onClick={stopLocationListener}>
-                    Stop Location Listener
-                </button>
-                <button style={styles.button} onClick={getLastLocation}>
-                    Get Last Journey
-                </button>
-            </div>
-            {isLoading && <p style={styles.loading}>Fetching last location...</p>}
-            {statusMessage && <p style={styles.status}>{statusMessage}</p>}
-            <div style={styles.locationInfo}>
-                <h3>Current Location:</h3>
-                <p><strong>Latitude:</strong> {currentLocation.latitude || "Not available"}</p>
-                <p><strong>Longitude:</strong> {currentLocation.longitude || "Not available"}</p>
-                <p><strong>Accuracy:</strong> {currentLocation.accuracy || "Not available"} meters</p>
-                <p><strong>Timestamp:</strong> {currentLocation.timestamp || "Not available"}</p>
-            </div>
-            {isLoaded && (
-                <GoogleMap
-                    center={{
-                        lat: currentLocation.latitude || 0,
-                        lng: currentLocation.longitude || 0,
-                    }}
-                    zoom={12}
-                    mapContainerStyle={styles.mapContainer}
-                >
-                    {currentLocation.latitude && (
-                        <Marker
-                            position={{
-                                lat: currentLocation.latitude,
-                                lng: currentLocation.longitude,
-                            }}
-                            label="You"
-                        />
-                    )}
-                    {journey.length > 1 && (
-                        <Polyline
-                            path={journey}
-                            options={{
-                                strokeColor: "#FF0000",
-                                strokeOpacity: 0.8,
-                                strokeWeight: 2,
-                            }}
-                        />
-                    )}
-                </GoogleMap>
-            )}
+      {/* Start Point */}
+      {startPoint && (
+        <div 
+          className="absolute flex items-center z-30"
+          style={{
+            left: `${startPoint.x}%`, 
+            top: `${startPoint.y}%`
+          }}
+        >
+          <MapPin 
+            className="text-green-500" 
+            size={24}
+          />
+          <span className="ml-2 bg-white p-1 rounded shadow text-xs">
+            Start
+          </span>
         </div>
-    );
-};
+      )}
 
-// Styles
-const styles = {
-    container: {
-        fontFamily: "Arial, sans-serif",
-        color: "#333",
-        padding: "20px",
-        textAlign: "center",
-    },
-    title: {
-        fontSize: "24px",
-        marginBottom: "20px",
-    },
-    buttonContainer: {
-        display: "flex",
-        justifyContent: "center",
-        gap: "10px",
-        marginBottom: "20px",
-    },
-    button: {
-        padding: "10px 20px",
-        fontSize: "16px",
-        backgroundColor: "#4CAF50",
-        color: "white",
-        border: "none",
-        borderRadius: "5px",
-        cursor: "pointer",
-    },
-    loading: {
-        color: "#FFA500",
-        fontStyle: "italic",
-        fontSize: "16px",
-    },
-    status: {
-        margin: "10px 0",
-        color: "#007BFF",
-        fontStyle: "italic",
-    },
-    locationInfo: {
-        marginTop: "20px",
-        padding: "10px",
-        border: "1px solid #ccc",
-        borderRadius: "5px",
-        display: "inline-block",
-        textAlign: "left",
-    },
-    mapContainer: {
-        height: "400px",
-        width: "100%",
-        marginTop: "20px",
-    },
+      {/* End Point */}
+      {endPoint && (
+        <div 
+          className="absolute flex items-center z-30"
+          style={{
+            left: `${endPoint.x}%`, 
+            top: `${endPoint.y}%`
+          }}
+        >
+          <MapPin 
+            className="text-red-500" 
+            size={24}
+          />
+          <span className="ml-2 bg-white p-1 rounded shadow text-xs">
+            End
+          </span>
+        </div>
+      )}
+
+      {/* Control Buttons */}
+      <div className="absolute top-4 left-4 z-50 flex gap-2">
+        <button 
+          className="bg-green-500 text-white px-4 py-2 rounded"
+          onClick={startLocationListener}
+        >
+          Start Tracking
+        </button>
+        <button 
+          className="bg-red-500 text-white px-4 py-2 rounded"
+          onClick={stopLocationListener}
+        >
+          Stop Tracking
+        </button>
+        <button 
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+          onClick={getLastLocation}
+        >
+          Get Journey
+        </button>
+      </div>
+
+      {/* Location Information */}
+      <div className="absolute bottom-4 left-4 bg-white p-4 rounded-lg shadow-md z-50 w-64">
+        <div className="font-bold text-lg mb-2">Current Location</div>
+        <div className="text-sm">
+          <p><strong>Latitude:</strong> {currentLocation.latitude ?? 'N/A'}</p>
+          <p><strong>Longitude:</strong> {currentLocation.longitude ?? 'N/A'}</p>
+          <p><strong>Accuracy:</strong> {currentLocation.accuracy ?? 'N/A'} meters</p>
+          <p><strong>Timestamp:</strong> {currentLocation.timestamp ?? 'N/A'}</p>
+        </div>
+        {statusMessage && (
+          <div className="mt-2 text-blue-600 italic">
+            {statusMessage}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default LocationTracker;
